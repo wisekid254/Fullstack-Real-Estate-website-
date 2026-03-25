@@ -6,6 +6,7 @@ import morgan from "morgan";
 
 import authRoutes from "./routes/auth.routes.js";
 import listingRoutes from "./routes/listing.routes.js";
+import inquiryRoutes from "./routes/inquiry.routes.js";
 import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
@@ -27,6 +28,7 @@ app.get("/api/health", (req, res) =>
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/listings", listingRoutes);
+app.use("/api/inquiries", inquiryRoutes);
 
 // 404
 app.use((req, res) =>
