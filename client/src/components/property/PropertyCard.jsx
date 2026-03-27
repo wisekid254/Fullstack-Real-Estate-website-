@@ -1,11 +1,15 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import toast from "react-hot-toast";
+import userService from "../../services/userService";
+import useAuth from "../../hooks/useAuth";
 import { formatPriceWithType, formatArea } from "../../utils/format";
-
-export default function PropertyCard({ listing, index = 0 }) {
+export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
+  const { isAuthenticated } = useAuth();
   const [imgError, setImgError] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(savedIds.includes(listing._id));
+  const [saving, setSaving] = useState(false);
 
   const {
     _id,
@@ -20,6 +24,24 @@ export default function PropertyCard({ listing, index = 0 }) {
   } = listing;
 
   const imageUrl = images?.[0]?.url;
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      toast.error("Sign in to save properties");
+      return;
+    }
+    setSaving(true);
+    try {
+      const data = await userService.saveListing(_id);
+      setSaved(data.saved);
+      toast.success(data.message);
+    } catch {
+      toast.error("Failed to save property");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <motion.div
@@ -72,11 +94,9 @@ export default function PropertyCard({ listing, index = 0 }) {
 
             {/* Save button */}
             <button
-              onClick={(e) => {
-                e.preventDefault();
-                setSaved((s) => !s);
-              }}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+              onClick={handleSave}
+              disabled={saving}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-50"
             >
               <svg
                 className={`w-4 h-4 transition-colors ${saved ? "text-red-500 fill-red-500" : "text-surface-400"}`}
@@ -96,7 +116,6 @@ export default function PropertyCard({ listing, index = 0 }) {
 
           {/* Body */}
           <div className="p-4">
-            {/* Price */}
             <div className="flex items-start justify-between mb-1">
               <p className="text-lg font-semibold text-surface-900">
                 {formatPriceWithType(price, type)}
@@ -105,13 +124,9 @@ export default function PropertyCard({ listing, index = 0 }) {
                 {category}
               </span>
             </div>
-
-            {/* Title */}
             <h3 className="text-sm font-medium text-surface-800 mb-1 line-clamp-1 group-hover:text-brand-500 transition-colors">
               {title}
             </h3>
-
-            {/* Location */}
             <div className="flex items-center gap-1 mb-3">
               <svg
                 className="w-3.5 h-3.5 text-surface-400 flex-shrink-0"
@@ -135,8 +150,6 @@ export default function PropertyCard({ listing, index = 0 }) {
                 {location?.address}, {location?.city}
               </span>
             </div>
-
-            {/* Features */}
             <div className="flex items-center gap-4 pt-3 border-t border-surface-100">
               {features?.bedrooms > 0 && (
                 <FeaturePill icon="bed" value={`${features.bedrooms} bd`} />
