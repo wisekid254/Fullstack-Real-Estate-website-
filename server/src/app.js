@@ -9,6 +9,8 @@ import listingRoutes from "./routes/listing.routes.js";
 import inquiryRoutes from "./routes/inquiry.routes.js";
 import errorHandler from "./middleware/errorHandler.js";
 import userRoutes from "./routes/user.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
 
 const app = express();
 
@@ -31,7 +33,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/listings", listingRoutes);
 app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/users", userRoutes);
-
+app.use("/api/admin", adminRoutes);
+app.use("/api/upload", uploadRoutes);
 // 404
 app.use((req, res) =>
   res.status(404).json({ success: false, message: "Route not found" }),

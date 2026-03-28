@@ -107,6 +107,13 @@ export default function PropertyDetailPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Back button */}
+      {listing && (
+        <SEO
+          title={listing.title}
+          description={listing.description?.slice(0, 155)}
+          image={listing.images?.[0]?.url}
+        />
+      )}
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-sm text-surface-500 hover:text-surface-900 mb-6 transition-colors"
