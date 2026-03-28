@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PropertyCard from "../components/property/PropertyCard";
 import listingService from "../services/listingService";
+import SEO from "../components/common/SEO";
 
 const CITIES = ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"];
 
@@ -41,6 +42,10 @@ export default function HomePage() {
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="relative bg-surface-900 text-white overflow-hidden">
         {/* Background pattern */}
+        <SEO
+          title="nestHaven — Find your perfect home in Kenya"
+          description="Search thousands of properties for sale and rent across Kenya. Connect with verified agents."
+        />
         <div
           className="absolute inset-0 opacity-10"
           style={{

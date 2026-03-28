@@ -67,6 +67,10 @@ export default function ListingsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
+      <SEO
+        title="Property listings — Buy and rent in Kenya"
+        description="Browse houses, apartments, villas and commercial properties for sale and rent across Kenya."
+      />
       <div className="mb-6">
         <h1 className="text-display-md text-surface-900 mb-1">
           {filters.type === "rent"

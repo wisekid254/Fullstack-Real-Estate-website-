@@ -307,6 +307,11 @@ function DropdownItem({ to, onClick, label }) {
       className="block px-3 py-2 text-sm text-surface-700 hover:bg-surface-100 rounded-lg transition-colors"
     >
       {label}
+      <DropdownItem
+        to="/listings/create"
+        onClick={() => setDropdownOpen(false)}
+        label="Post a property"
+      />
     </Link>
   );
 }
