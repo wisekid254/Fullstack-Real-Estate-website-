@@ -39,13 +39,13 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
+      <SEO
+        title="nestHaven — Find your perfect home in Kenya"
+        description="Search thousands of properties for sale and rent across Kenya. Connect with verified agents on nestHaven."
+      />
+
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="relative bg-surface-900 text-white overflow-hidden">
-        {/* Background pattern */}
-        <SEO
-          title="nestHaven — Find your perfect home in Kenya"
-          description="Search thousands of properties for sale and rent across Kenya. Connect with verified agents."
-        />
         <div
           className="absolute inset-0 opacity-10"
           style={{
@@ -56,7 +56,6 @@ export default function HomePage() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
           <div className="max-w-3xl mx-auto text-center">
-            {/* Badge */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -68,7 +67,6 @@ export default function HomePage() {
               </span>
             </motion.div>
 
-            {/* Headline */}
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -81,7 +79,6 @@ export default function HomePage() {
               anywhere in Kenya.
             </motion.h1>
 
-            {/* Subheading */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -99,7 +96,6 @@ export default function HomePage() {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="bg-white rounded-2xl p-2 shadow-modal max-w-2xl mx-auto"
             >
-              {/* Type tabs */}
               <div className="flex gap-1 mb-2 px-1 pt-1">
                 {["sale", "rent"].map((t) => (
                   <button
@@ -116,7 +112,6 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {/* Search inputs */}
               <form
                 onSubmit={handleSearch}
                 className="flex flex-col sm:flex-row gap-2 p-1"
@@ -153,7 +148,6 @@ export default function HomePage() {
               </form>
             </motion.div>
 
-            {/* Quick links */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

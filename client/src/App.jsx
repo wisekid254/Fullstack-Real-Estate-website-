@@ -2,6 +2,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { lazy, Suspense } from "react";
 
+import Navbar from "./components/layout/Navbar";
+import Footer from "./components/layout/Footer";
+import ProtectedRoute from "./components/common/ProtectedRoute";
+
 const HomePage = lazy(() => import("./pages/HomePage"));
 const ListingsPage = lazy(() => import("./pages/ListingsPage"));
 const PropertyDetailPage = lazy(() => import("./pages/PropertyDetailPage"));
@@ -11,10 +15,6 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const CreateListingPage = lazy(() => import("./pages/CreateListingPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
-
-import Navbar from "./components/layout/Navbar";
-import Footer from "./components/layout/Footer";
-import ProtectedRoute from "./components/common/ProtectedRoute";
 
 function PageLoader() {
   return (
@@ -37,20 +37,20 @@ function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/listings" element={<ListingsPage />} />
-              <Route path="/listings/:id" element={<PropertyDetailPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route element={<ProtectedRoute />}>
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/saved" element={<ProfilePage />} />
                 <Route
                   path="/listings/create"
                   element={<CreateListingPage />}
                 />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/saved" element={<ProfilePage />} />
               </Route>
               <Route element={<ProtectedRoute requireAdmin />}>
                 <Route path="/admin" element={<AdminPage />} />
               </Route>
+              <Route path="/listings/:id" element={<PropertyDetailPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
