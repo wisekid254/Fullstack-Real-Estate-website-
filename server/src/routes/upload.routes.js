@@ -1,29 +1,25 @@
-import { Router } from "express";
-import upload from "../middleware/upload.middleware.js";
-import { protect } from "../middleware/auth.middleware.js";
-import cloudinary from "../config/cloudinary.js";
-import ApiError from "../utils/ApiError.js";
+import { Router }  from 'express'
+import upload      from '../middleware/upload.middleware.js'
+import { protect } from '../middleware/auth.middleware.js'
+import cloudinary  from '../config/cloudinary.js'
+import ApiError    from '../utils/ApiError.js'
 
-const router = Router();
+const router = Router()
 
-// POST /api/upload  — upload up to 5 images at once
-router.post("/", protect, upload.array("images", 5), async (req, res) => {
+router.post('/', protect, upload.array('images', 5), async (req, res) => {
   if (!req.files || req.files.length === 0) {
-    throw new ApiError("No files uploaded", 400);
+    throw new ApiError('No files uploaded', 400)
   }
-
   const images = req.files.map((file) => ({
-    url: file.path,
+    url:      file.path,
     publicId: file.filename,
-  }));
+  }))
+  res.json({ success: true, images })
+})
 
-  res.json({ success: true, images });
-});
+router.delete('/:publicId', protect, async (req, res) => {
+  await cloudinary.uploader.destroy(`nesthaven/${req.params.publicId}`)
+  res.json({ success: true, message: 'Image deleted' })
+})
 
-// DELETE /api/upload/:publicId  — delete an image from Cloudinary
-router.delete("/:publicId", protect, async (req, res) => {
-  await cloudinary.uploader.destroy(`nesthaven/${req.params.publicId}`);
-  res.json({ success: true, message: "Image deleted" });
-});
-
-export default router;
+export default router
