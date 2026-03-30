@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import listingService from "../services/listingService";
 import uploadService from "../services/uploadService";
+import SEO from "../components/common/SEO";
 
 const CATEGORIES = ["house", "apartment", "villa", "land", "commercial"];
+
 const AMENITY_OPTIONS = [
   "Pool",
   "Gym",
@@ -28,7 +30,13 @@ const DEFAULT_FORM = {
   price: "",
   type: "sale",
   category: "house",
-  location: { address: "", city: "", country: "Kenya" },
+  location: {
+    address: "",
+    city: "",
+    country: "Kenya",
+    lat: "",
+    lng: "",
+  },
   features: {
     bedrooms: "",
     bathrooms: "",
@@ -42,13 +50,14 @@ const DEFAULT_FORM = {
 
 export default function CreateListingPage() {
   const navigate = useNavigate();
+
   const [form, setForm] = useState(DEFAULT_FORM);
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
-  // ── Field helpers ───────────────────────────────────────
+  // ── Field helpers ─────────────────────────────────────
   const setField = (path, value) => {
     setForm((prev) => {
       const next = { ...prev };
@@ -72,7 +81,7 @@ export default function CreateListingPage() {
     }));
   };
 
-  // ── Image handling ──────────────────────────────────────
+  // ── Image handling ────────────────────────────────────
   const handleFiles = (e) => {
     const selected = Array.from(e.target.files);
     if (selected.length + files.length > 5) {
@@ -93,7 +102,7 @@ export default function CreateListingPage() {
     setPreviews((p) => p.filter((_, i) => i !== index));
   };
 
-  // ── Submit ──────────────────────────────────────────────
+  // ── Submit ─────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (files.length === 0) {
@@ -102,28 +111,33 @@ export default function CreateListingPage() {
     }
     setLoading(true);
     try {
-      // 1. Upload images to Cloudinary
       toast.loading("Uploading images…", { id: "upload" });
       const { images } = await uploadService.uploadImages(files);
       toast.success("Images uploaded", { id: "upload" });
 
-      // 2. Create listing
       const payload = {
         ...form,
         price: Number(form.price),
         images,
         features: {
-          ...form.features,
           bedrooms: Number(form.features.bedrooms) || 0,
           bathrooms: Number(form.features.bathrooms) || 0,
           area: Number(form.features.area) || 0,
           parking: Number(form.features.parking) || 0,
+          furnished: form.features.furnished,
           yearBuilt: Number(form.features.yearBuilt) || null,
+        },
+        location: {
+          address: form.location.address,
+          city: form.location.city,
+          country: form.location.country,
+          lat: form.location.lat ? Number(form.location.lat) : null,
+          lng: form.location.lng ? Number(form.location.lng) : null,
         },
       };
 
       const data = await listingService.createListing(payload);
-      toast.success("Listing created successfully!");
+      toast.success("Listing published!");
       navigate(`/listings/${data.listing._id}`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to create listing");
@@ -132,15 +146,21 @@ export default function CreateListingPage() {
     }
   };
 
-  // ── Step validation ─────────────────────────────────────
   const canProceed = () => {
     if (step === 1) return form.title && form.description && form.price;
     if (step === 2) return form.location.address && form.location.city;
     return true;
   };
 
+  const STEPS = ["Basic info", "Location", "Features", "Photos"];
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <SEO
+        title="Post a property"
+        description="List your property on nestHaven and reach thousands of buyers and renters."
+      />
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -155,29 +175,36 @@ export default function CreateListingPage() {
       </motion.div>
 
       {/* Step indicator */}
-      <div className="flex items-center gap-3 mb-8">
-        {["Basic info", "Location", "Features", "Photos"].map((label, i) => (
-          <div key={label} className="flex items-center gap-2">
-            <button
-              onClick={() => i + 1 < step && setStep(i + 1)}
-              className={`w-8 h-8 rounded-full text-sm font-semibold flex items-center justify-center transition-colors ${
-                step === i + 1
-                  ? "bg-brand-500 text-white"
-                  : step > i + 1
-                    ? "bg-brand-100 text-brand-700 cursor-pointer"
-                    : "bg-surface-100 text-surface-400"
-              }`}
-            >
-              {step > i + 1 ? "✓" : i + 1}
-            </button>
-            <span
-              className={`text-sm hidden sm:block ${step === i + 1 ? "text-surface-900 font-medium" : "text-surface-400"}`}
-            >
-              {label}
-            </span>
-            {i < 3 && (
+      <div className="flex items-center mb-8">
+        {STEPS.map((label, i) => (
+          <div key={label} className="flex items-center flex-1 last:flex-none">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => i + 1 < step && setStep(i + 1)}
+                className={`w-8 h-8 rounded-full text-sm font-semibold flex items-center justify-center transition-colors ${
+                  step === i + 1
+                    ? "bg-brand-500 text-white"
+                    : step > i + 1
+                      ? "bg-brand-100 text-brand-700 cursor-pointer hover:bg-brand-200"
+                      : "bg-surface-100 text-surface-400"
+                }`}
+              >
+                {step > i + 1 ? "✓" : i + 1}
+              </button>
+              <span
+                className={`text-sm hidden sm:block whitespace-nowrap ${
+                  step === i + 1
+                    ? "text-surface-900 font-medium"
+                    : "text-surface-400"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
               <div
-                className={`flex-1 h-px w-6 ${step > i + 1 ? "bg-brand-300" : "bg-surface-200"}`}
+                className={`flex-1 h-px mx-3 ${step > i + 1 ? "bg-brand-300" : "bg-surface-200"}`}
               />
             )}
           </div>
@@ -192,7 +219,7 @@ export default function CreateListingPage() {
           transition={{ duration: 0.25 }}
           className="card p-6 space-y-5"
         >
-          {/* ── Step 1: Basic info ────────────────────── */}
+          {/* ── Step 1: Basic info ───────────────────── */}
           {step === 1 && (
             <>
               <div>
@@ -256,9 +283,9 @@ export default function CreateListingPage() {
 
               <div>
                 <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                  Price (KES) *{" "}
+                  Price (KES) *
                   {form.type === "rent" && (
-                    <span className="text-surface-400 font-normal">
+                    <span className="text-surface-400 font-normal ml-1">
                       — per month
                     </span>
                   )}
@@ -276,7 +303,7 @@ export default function CreateListingPage() {
             </>
           )}
 
-          {/* ── Step 2: Location ──────────────────────── */}
+          {/* ── Step 2: Location ─────────────────────── */}
           {step === 2 && (
             <>
               <div>
@@ -291,6 +318,7 @@ export default function CreateListingPage() {
                   required
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-surface-700 mb-1.5">
@@ -317,15 +345,19 @@ export default function CreateListingPage() {
                   />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    Latitude (optional)
+                    Latitude{" "}
+                    <span className="text-surface-400 font-normal">
+                      (optional)
+                    </span>
                   </label>
                   <input
                     type="number"
                     step="any"
-                    value={form.location.lat || ""}
+                    value={form.location.lat}
                     onChange={(e) => setField("location.lat", e.target.value)}
                     placeholder="-1.2921"
                     className="input"
@@ -333,20 +365,25 @@ export default function CreateListingPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    Longitude (optional)
+                    Longitude{" "}
+                    <span className="text-surface-400 font-normal">
+                      (optional)
+                    </span>
                   </label>
                   <input
                     type="number"
                     step="any"
-                    value={form.location.lng || ""}
+                    value={form.location.lng}
                     onChange={(e) => setField("location.lng", e.target.value)}
                     placeholder="36.8219"
                     className="input"
                   />
                 </div>
               </div>
+
               <p className="text-xs text-surface-400">
-                Tip: find lat/lng by right-clicking your property on Google Maps
+                Tip: right-click your property location on Google Maps to copy
+                the coordinates
               </p>
             </>
           )}
@@ -356,41 +393,27 @@ export default function CreateListingPage() {
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {[
-                  {
-                    label: "Bedrooms",
-                    path: "features.bedrooms",
-                    placeholder: "3",
-                  },
-                  {
-                    label: "Bathrooms",
-                    path: "features.bathrooms",
-                    placeholder: "2",
-                  },
-                  {
-                    label: "Area (m²)",
-                    path: "features.area",
-                    placeholder: "150",
-                  },
-                  {
-                    label: "Parking",
-                    path: "features.parking",
-                    placeholder: "1",
-                  },
+                  { label: "Bedrooms", key: "bedrooms", placeholder: "3" },
+                  { label: "Bathrooms", key: "bathrooms", placeholder: "2" },
+                  { label: "Area (m²)", key: "area", placeholder: "150" },
+                  { label: "Parking", key: "parking", placeholder: "1" },
                   {
                     label: "Year built",
-                    path: "features.yearBuilt",
+                    key: "yearBuilt",
                     placeholder: "2020",
                   },
                 ].map((f) => (
-                  <div key={f.path}>
+                  <div key={f.key}>
                     <label className="block text-sm font-medium text-surface-700 mb-1.5">
                       {f.label}
                     </label>
                     <input
                       type="number"
                       min={0}
-                      value={form.features[f.path.split(".")[1]] || ""}
-                      onChange={(e) => setField(f.path, e.target.value)}
+                      value={form.features[f.key]}
+                      onChange={(e) =>
+                        setField(`features.${f.key}`, e.target.value)
+                      }
                       placeholder={f.placeholder}
                       className="input"
                     />
@@ -437,19 +460,24 @@ export default function CreateListingPage() {
             </>
           )}
 
-          {/* ── Step 4: Photos ────────────────────────── */}
+          {/* ── Step 4: Photos ───────────────────────── */}
           {step === 4 && (
             <>
               <div>
                 <label className="block text-sm font-medium text-surface-700 mb-3">
-                  Property photos *{" "}
-                  <span className="text-surface-400 font-normal">
-                    (up to 5 images, max 5MB each)
+                  Property photos *
+                  <span className="text-surface-400 font-normal ml-1">
+                    — up to 5 images, max 5MB each
                   </span>
                 </label>
 
-                {/* Drop zone */}
-                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-surface-200 rounded-xl cursor-pointer hover:border-brand-300 hover:bg-brand-50 transition-colors">
+                <label
+                  className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-xl transition-colors ${
+                    files.length >= 5
+                      ? "border-surface-100 bg-surface-50 cursor-not-allowed"
+                      : "border-surface-200 cursor-pointer hover:border-brand-300 hover:bg-brand-50"
+                  }`}
+                >
                   <svg
                     className="w-8 h-8 text-surface-300 mb-2"
                     fill="none"
@@ -464,7 +492,9 @@ export default function CreateListingPage() {
                     />
                   </svg>
                   <p className="text-sm text-surface-500">
-                    Click to upload photos
+                    {files.length >= 5
+                      ? "Maximum photos reached"
+                      : "Click to upload photos"}
                   </p>
                   <p className="text-xs text-surface-400 mt-1">
                     JPG, PNG, WebP
@@ -480,13 +510,12 @@ export default function CreateListingPage() {
                 </label>
               </div>
 
-              {/* Previews */}
               {previews.length > 0 && (
                 <div className="grid grid-cols-3 gap-3">
                   {previews.map((p, i) => (
                     <div
                       key={i}
-                      className="relative group rounded-xl overflow-hidden h-24 bg-surface-100"
+                      className="relative group rounded-xl overflow-hidden h-28 bg-surface-100"
                     >
                       <img
                         src={p.url}
@@ -496,12 +525,12 @@ export default function CreateListingPage() {
                       <button
                         type="button"
                         onClick={() => removeFile(i)}
-                        className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         ✕
                       </button>
                       {i === 0 && (
-                        <span className="absolute bottom-1.5 left-1.5 text-xs bg-black/60 text-white px-2 py-0.5 rounded-full">
+                        <span className="absolute bottom-2 left-2 text-xs bg-black/60 text-white px-2 py-0.5 rounded-full">
                           Cover
                         </span>
                       )}
@@ -509,11 +538,18 @@ export default function CreateListingPage() {
                   ))}
                 </div>
               )}
+
+              {files.length > 0 && (
+                <p className="text-xs text-surface-400">
+                  {files.length} of 5 photos selected · First photo will be the
+                  cover image
+                </p>
+              )}
             </>
           )}
         </motion.div>
 
-        {/* Navigation buttons */}
+        {/* Navigation */}
         <div className="flex items-center justify-between mt-6">
           <button
             type="button"
@@ -528,7 +564,7 @@ export default function CreateListingPage() {
               type="button"
               onClick={() => setStep((s) => s + 1)}
               disabled={!canProceed()}
-              className="btn-primary disabled:opacity-50"
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Continue →
             </button>
@@ -536,7 +572,7 @@ export default function CreateListingPage() {
             <button
               type="submit"
               disabled={loading || files.length === 0}
-              className="btn-primary disabled:opacity-50"
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Publishing…" : "Publish listing"}
             </button>

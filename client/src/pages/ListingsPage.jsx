@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import PropertyCard from "../components/property/PropertyCard";
 import listingService from "../services/listingService";
+import SEO from "../components/common/SEO";
 
 const CATEGORIES = ["All", "house", "apartment", "villa", "land", "commercial"];
 const SORT_OPTIONS = [
@@ -13,7 +14,8 @@ const SORT_OPTIONS = [
 ];
 
 export default function ListingsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -30,7 +32,9 @@ export default function ListingsPage() {
     page: 1,
   });
 
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState(
+    searchParams.get("search") || "",
+  );
 
   useEffect(() => {
     fetchListings();
@@ -55,30 +59,31 @@ export default function ListingsPage() {
     }
   };
 
-  const updateFilter = (key, value) => {
+  const updateFilter = (key, value) =>
     setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
-  };
 
   const handleSearch = (e) => {
     e.preventDefault();
     fetchListings();
   };
 
+  const pageTitle =
+    filters.type === "rent"
+      ? "Properties for rent"
+      : filters.type === "sale"
+        ? "Properties for sale"
+        : "All properties";
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
       <SEO
         title="Property listings — Buy and rent in Kenya"
         description="Browse houses, apartments, villas and commercial properties for sale and rent across Kenya."
       />
+
+      {/* Header */}
       <div className="mb-6">
-        <h1 className="text-display-md text-surface-900 mb-1">
-          {filters.type === "rent"
-            ? "Properties for rent"
-            : filters.type === "sale"
-              ? "Properties for sale"
-              : "All properties"}
-        </h1>
+        <h1 className="text-display-md text-surface-900 mb-1">{pageTitle}</h1>
         <p className="text-surface-500 text-sm">{total} properties found</p>
       </div>
 
@@ -192,7 +197,7 @@ export default function ListingsPage() {
               </div>
             </div>
 
-            {/* Clear filters */}
+            {/* Clear */}
             <button
               onClick={() =>
                 setFilters({
@@ -215,7 +220,7 @@ export default function ListingsPage() {
 
         {/* Listings grid */}
         <div className="flex-1">
-          {/* Sort + count bar */}
+          {/* Sort bar */}
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-surface-500">
               Showing{" "}

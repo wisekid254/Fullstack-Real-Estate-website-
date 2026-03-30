@@ -16,23 +16,20 @@ export default function Navbar() {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(e) {
+    const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
       }
-    }
+    };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [navigate]);
 
-  // Get initials from user name
   const getInitials = (name = "") =>
     name
       .split(" ")
@@ -81,90 +78,98 @@ export default function Navbar() {
           {/* Desktop right side */}
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
-              <div className="relative" ref={dropdownRef}>
-                {/* Avatar button */}
-                <button
-                  onClick={() => setDropdownOpen((o) => !o)}
-                  className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-surface-100 transition-colors"
+              <>
+                <Link
+                  to="/listings/create"
+                  className="btn-secondary text-sm px-4 py-2"
                 >
-                  <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-800 text-xs font-semibold flex items-center justify-center">
-                    {getInitials(user?.name)}
-                  </div>
-                  <span className="text-sm text-surface-700 font-medium">
-                    {user?.name?.split(" ")[0]}
-                  </span>
-                  {/* Chevron */}
-                  <svg
-                    className={`w-4 h-4 text-surface-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
+                  + Post property
+                </Link>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setDropdownOpen((o) => !o)}
+                    className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-surface-100 transition-colors"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-
-                {/* Dropdown menu */}
-                <AnimatePresence>
-                  {dropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-surface-200 shadow-modal overflow-hidden"
+                    <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-800 text-xs font-semibold flex items-center justify-center">
+                      {getInitials(user?.name)}
+                    </div>
+                    <span className="text-sm text-surface-700 font-medium">
+                      {user?.name?.split(" ")[0]}
+                    </span>
+                    <svg
+                      className={`w-4 h-4 text-surface-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
                     >
-                      {/* User info header */}
-                      <div className="px-4 py-3 border-b border-surface-100">
-                        <p className="text-sm font-medium text-surface-900">
-                          {user?.name}
-                        </p>
-                        <p className="text-xs text-surface-500 truncate">
-                          {user?.email}
-                        </p>
-                      </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
 
-                      <div className="p-1.5">
-                        <DropdownItem
-                          to="/profile"
-                          onClick={() => setDropdownOpen(false)}
-                          label="My profile"
-                        />
-                        <DropdownItem
-                          to="/saved"
-                          onClick={() => setDropdownOpen(false)}
-                          label="Saved properties"
-                        />
-                        {isAdmin && (
+                  <AnimatePresence>
+                    {dropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-surface-200 shadow-modal overflow-hidden"
+                      >
+                        <div className="px-4 py-3 border-b border-surface-100">
+                          <p className="text-sm font-medium text-surface-900">
+                            {user?.name}
+                          </p>
+                          <p className="text-xs text-surface-500 truncate">
+                            {user?.email}
+                          </p>
+                        </div>
+                        <div className="p-1.5">
                           <DropdownItem
-                            to="/admin"
+                            to="/profile"
                             onClick={() => setDropdownOpen(false)}
-                            label="Admin dashboard"
+                            label="My profile"
                           />
-                        )}
-                        <hr className="my-1 border-surface-100" />
-                        <button
-                          onClick={handleLogout}
-                          className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          Sign out
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                          <DropdownItem
+                            to="/saved"
+                            onClick={() => setDropdownOpen(false)}
+                            label="Saved properties"
+                          />
+                          <DropdownItem
+                            to="/listings/create"
+                            onClick={() => setDropdownOpen(false)}
+                            label="Post a property"
+                          />
+                          {isAdmin && (
+                            <DropdownItem
+                              to="/admin"
+                              onClick={() => setDropdownOpen(false)}
+                              label="Admin dashboard"
+                            />
+                          )}
+                          <hr className="my-1 border-surface-100" />
+                          <button
+                            onClick={handleLogout}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            Sign out
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
             ) : (
               <>
                 <Link to="/login" className="btn-secondary px-4 py-2 text-sm">
                   Sign in
                 </Link>
-                <Link to="/register" className="btn-primary px-4 py-2 text-sm">
+                <Link to="/register" className="btn-primary  px-4 py-2 text-sm">
                   Get started
                 </Link>
               </>
@@ -213,7 +218,6 @@ export default function Navbar() {
             className="md:hidden border-t border-surface-200 bg-white overflow-hidden"
           >
             <div className="px-4 py-3 space-y-1">
-              {/* Nav links */}
               {NAV_LINKS.map((link) => (
                 <Link
                   key={link.to}
@@ -224,12 +228,9 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
-
               <hr className="border-surface-200 my-2" />
-
               {isAuthenticated ? (
                 <>
-                  {/* User info */}
                   <div className="flex items-center gap-3 px-3 py-2">
                     <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-800 text-sm font-semibold flex items-center justify-center">
                       {getInitials(user?.name)}
@@ -255,6 +256,13 @@ export default function Navbar() {
                     className="block px-3 py-2.5 rounded-lg text-sm text-surface-700 hover:bg-surface-100 transition-colors"
                   >
                     Saved properties
+                  </Link>
+                  <Link
+                    to="/listings/create"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-3 py-2.5 rounded-lg text-sm text-surface-700 hover:bg-surface-100 transition-colors"
+                  >
+                    Post a property
                   </Link>
                   {isAdmin && (
                     <Link
@@ -284,7 +292,7 @@ export default function Navbar() {
                   <Link
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="btn-primary w-full text-center py-2.5"
+                    className="btn-primary  w-full text-center py-2.5"
                   >
                     Get started
                   </Link>
@@ -298,7 +306,6 @@ export default function Navbar() {
   );
 }
 
-// Small helper component for dropdown items
 function DropdownItem({ to, onClick, label }) {
   return (
     <Link
@@ -307,11 +314,6 @@ function DropdownItem({ to, onClick, label }) {
       className="block px-3 py-2 text-sm text-surface-700 hover:bg-surface-100 rounded-lg transition-colors"
     >
       {label}
-      <DropdownItem
-        to="/listings/create"
-        onClick={() => setDropdownOpen(false)}
-        label="Post a property"
-      />
     </Link>
   );
 }
