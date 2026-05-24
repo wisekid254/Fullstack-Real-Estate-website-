@@ -15,6 +15,7 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const CreateListingPage = lazy(() => import("./pages/CreateListingPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const AgentsPage = lazy(() => import("./pages/AgentsPage"));
 
 function PageLoader() {
   return (
@@ -52,6 +53,7 @@ function App() {
               </Route>
               <Route path="/listings/:id" element={<PropertyDetailPage />} />
               <Route path="*" element={<NotFoundPage />} />
+              <Route path="/agents" element={<AgentsPage />} />
             </Routes>
           </Suspense>
         </main>
