@@ -220,7 +220,7 @@ export default function AgentsPage() {
           Join nestHaven and reach thousands of buyers and renters.
         </p>
 
-        <Link to="/login" className="btn-primary px-8 py-3">
+        <Link to="/register?role=agent" className="btn-primary px-8 py-3">
           Join as an agent
         </Link>
       </motion.div>
