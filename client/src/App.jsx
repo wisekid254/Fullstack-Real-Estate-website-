@@ -16,6 +16,7 @@ const AdminPage = lazy(() => import("./pages/AdminPage"));
 const CreateListingPage = lazy(() => import("./pages/CreateListingPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 const AgentsPage = lazy(() => import("./pages/AgentsPage"));
+const VerifyOTPPage = lazy(() => import("./pages/VerifyOTPPage"));
 
 function PageLoader() {
   return (
@@ -54,6 +55,7 @@ function App() {
               <Route path="/listings/:id" element={<PropertyDetailPage />} />
               <Route path="*" element={<NotFoundPage />} />
               <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/verify-otp" element={<VerifyOTPPage />} />
             </Routes>
           </Suspense>
         </main>
