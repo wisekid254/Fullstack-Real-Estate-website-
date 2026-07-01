@@ -13,8 +13,12 @@ const authService = {
     const res = await api.post("/auth/verify-otp", data);
     return res.data;
   },
-  resendOtp: async (email) => {
-    const res = await api.post("/auth/resend-otp", { email });
+  verifySignupOtp: async (data) => {
+    const res = await api.post("/auth/verify-signup-otp", data);
+    return res.data;
+  },
+  resendOtp: async (email, purpose = "login") => {
+    const res = await api.post("/auth/resend-otp", { email, purpose });
     return res.data;
   },
   getMe: async () => {

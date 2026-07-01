@@ -11,6 +11,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { isAuthenticated, loading, error, clearError } = useAuth();
   const requiresOTP = useSelector((s) => s.auth.requiresOTP);
+  const requiresVerification = useSelector((s) => s.auth.requiresVerification);
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -21,6 +22,9 @@ export default function LoginPage() {
   useEffect(() => {
     if (requiresOTP) navigate("/verify-otp");
   }, [requiresOTP]);
+  useEffect(() => {
+    if (requiresVerification) navigate("/verify-email");
+  }, [requiresVerification, navigate]);
   useEffect(() => {
     if (error) {
       toast.error(error);

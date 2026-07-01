@@ -17,6 +17,7 @@ const CreateListingPage = lazy(() => import("./pages/CreateListingPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 const AgentsPage = lazy(() => import("./pages/AgentsPage"));
 const VerifyOTPPage = lazy(() => import("./pages/VerifyOTPPage"));
+const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
 
 function PageLoader() {
   return (
@@ -41,13 +42,24 @@ function App() {
               <Route path="/listings" element={<ListingsPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route element={<ProtectedRoute />}>
+              {/* past route when all used to post property */}
+              {/* <Route element={<ProtectedRoute />}>
                 <Route
                   path="/listings/create"
                   element={<CreateListingPage />}
                 />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/saved" element={<ProfilePage />} />
+              </Route> */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/saved" element={<ProfilePage />} />
+              </Route>
+              <Route element={<ProtectedRoute requireAgent />}>
+                <Route
+                  path="/listings/create"
+                  element={<CreateListingPage />}
+                />
               </Route>
               <Route element={<ProtectedRoute requireAdmin />}>
                 <Route path="/admin" element={<AdminPage />} />
@@ -56,6 +68,7 @@ function App() {
               <Route path="*" element={<NotFoundPage />} />
               <Route path="/agents" element={<AgentsPage />} />
               <Route path="/verify-otp" element={<VerifyOTPPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
             </Routes>
           </Suspense>
         </main>

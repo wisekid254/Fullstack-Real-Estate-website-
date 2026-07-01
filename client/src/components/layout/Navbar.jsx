@@ -10,7 +10,8 @@ const NAV_LINKS = [
 ];
 
 export default function Navbar() {
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, canPostProperty, logout } = useAuth();
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -22,6 +23,7 @@ export default function Navbar() {
         setDropdownOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -79,12 +81,15 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
               <>
-                <Link
-                  to="/listings/create"
-                  className="btn-secondary text-sm px-4 py-2"
-                >
-                  + Post property
-                </Link>
+                {canPostProperty && (
+                  <Link
+                    to="/listings/create"
+                    className="btn-secondary text-sm px-4 py-2"
+                  >
+                    + Post property
+                  </Link>
+                )}
+
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen((o) => !o)}
@@ -93,11 +98,15 @@ export default function Navbar() {
                     <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-800 text-xs font-semibold flex items-center justify-center">
                       {getInitials(user?.name)}
                     </div>
+
                     <span className="text-sm text-surface-700 font-medium">
                       {user?.name?.split(" ")[0]}
                     </span>
+
                     <svg
-                      className={`w-4 h-4 text-surface-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+                      className={`w-4 h-4 text-surface-400 transition-transform duration-200 ${
+                        dropdownOpen ? "rotate-180" : ""
+                      }`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -128,22 +137,28 @@ export default function Navbar() {
                             {user?.email}
                           </p>
                         </div>
+
                         <div className="p-1.5">
                           <DropdownItem
                             to="/profile"
                             onClick={() => setDropdownOpen(false)}
                             label="My profile"
                           />
+
                           <DropdownItem
                             to="/saved"
                             onClick={() => setDropdownOpen(false)}
                             label="Saved properties"
                           />
-                          <DropdownItem
-                            to="/listings/create"
-                            onClick={() => setDropdownOpen(false)}
-                            label="Post a property"
-                          />
+
+                          {canPostProperty && (
+                            <DropdownItem
+                              to="/listings/create"
+                              onClick={() => setDropdownOpen(false)}
+                              label="Post a property"
+                            />
+                          )}
+
                           {isAdmin && (
                             <DropdownItem
                               to="/admin"
@@ -151,7 +166,9 @@ export default function Navbar() {
                               label="Admin dashboard"
                             />
                           )}
+
                           <hr className="my-1 border-surface-100" />
+
                           <button
                             onClick={handleLogout}
                             className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -169,7 +186,8 @@ export default function Navbar() {
                 <Link to="/login" className="btn-secondary px-4 py-2 text-sm">
                   Sign in
                 </Link>
-                <Link to="/register" className="btn-primary  px-4 py-2 text-sm">
+
+                <Link to="/register" className="btn-primary px-4 py-2 text-sm">
                   Get started
                 </Link>
               </>
@@ -228,13 +246,16 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
+
               <hr className="border-surface-200 my-2" />
+
               {isAuthenticated ? (
                 <>
                   <div className="flex items-center gap-3 px-3 py-2">
                     <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-800 text-sm font-semibold flex items-center justify-center">
                       {getInitials(user?.name)}
                     </div>
+
                     <div>
                       <p className="text-sm font-medium text-surface-900">
                         {user?.name}
@@ -242,7 +263,9 @@ export default function Navbar() {
                       <p className="text-xs text-surface-500">{user?.email}</p>
                     </div>
                   </div>
+
                   <hr className="border-surface-200 my-1" />
+
                   <Link
                     to="/profile"
                     onClick={() => setMobileMenuOpen(false)}
@@ -250,6 +273,7 @@ export default function Navbar() {
                   >
                     My profile
                   </Link>
+
                   <Link
                     to="/saved"
                     onClick={() => setMobileMenuOpen(false)}
@@ -257,13 +281,17 @@ export default function Navbar() {
                   >
                     Saved properties
                   </Link>
-                  <Link
-                    to="/listings/create"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block px-3 py-2.5 rounded-lg text-sm text-surface-700 hover:bg-surface-100 transition-colors"
-                  >
-                    Post a property
-                  </Link>
+
+                  {canPostProperty && (
+                    <Link
+                      to="/listings/create"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block px-3 py-2.5 rounded-lg text-sm text-surface-700 hover:bg-surface-100 transition-colors"
+                    >
+                      Post a property
+                    </Link>
+                  )}
+
                   {isAdmin && (
                     <Link
                       to="/admin"
@@ -273,6 +301,7 @@ export default function Navbar() {
                       Admin dashboard
                     </Link>
                   )}
+
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -289,10 +318,11 @@ export default function Navbar() {
                   >
                     Sign in
                   </Link>
+
                   <Link
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="btn-primary  w-full text-center py-2.5"
+                    className="btn-primary w-full text-center py-2.5"
                   >
                     Get started
                   </Link>
