@@ -23,7 +23,15 @@ export const loginUser = createAsyncThunk(
     try {
       return await authService.login(formData);
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Login failed");
+      const data = err.response?.data;
+      if (data?.requiresVerification) {
+        return rejectWithValue({
+          requiresVerification: true,
+          email: data.email,
+          message: data.message,
+        });
+      }
+      return rejectWithValue({ message: data?.message || "Login failed" });
     }
   },
 );
@@ -33,6 +41,17 @@ export const verifyOtpThunk = createAsyncThunk(
   async (data, { rejectWithValue }) => {
     try {
       return await authService.verifyOtp(data);
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Invalid code");
+    }
+  },
+);
+
+export const verifySignupOtpThunk = createAsyncThunk(
+  "auth/verifySignupOtp",
+  async (data, { rejectWithValue }) => {
+    try {
+      return await authService.verifySignupOtp(data);
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Invalid code");
     }
@@ -58,6 +77,7 @@ const authSlice = createSlice({
     loading: false,
     error: null,
     requiresOTP: false,
+    requiresVerification: false,
     pendingEmail: null,
   },
   reducers: {
@@ -65,6 +85,7 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.requiresOTP = false;
+      state.requiresVerification = false;
       state.pendingEmail = null;
       localStorage.removeItem("user");
       localStorage.removeItem("token");
@@ -74,6 +95,7 @@ const authSlice = createSlice({
     },
     clearOTPState(state) {
       state.requiresOTP = false;
+      state.requiresVerification = false;
       state.pendingEmail = null;
     },
   },
@@ -81,10 +103,6 @@ const authSlice = createSlice({
     const pending = (state) => {
       state.loading = true;
       state.error = null;
-    };
-    const rejected = (state, action) => {
-      state.loading = false;
-      state.error = action.payload;
     };
     const fulfilled = (state, action) => {
       state.loading = false;
@@ -95,23 +113,51 @@ const authSlice = createSlice({
     };
 
     builder
+      // Register — sends signup OTP, no token yet
       .addCase(registerUser.pending, pending)
-      .addCase(registerUser.fulfilled, fulfilled)
-      .addCase(registerUser.rejected, rejected)
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.requiresVerification = true;
+        state.pendingEmail = action.payload.email;
+      })
+      .addCase(registerUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
 
-      // Login — step 1: just sets requiresOTP
+      // Login — step 1
       .addCase(loginUser.pending, pending)
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.requiresOTP = true;
         state.pendingEmail = action.payload.email;
       })
-      .addCase(loginUser.rejected, rejected)
+      .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false;
+        if (action.payload?.requiresVerification) {
+          state.requiresVerification = true;
+          state.pendingEmail = action.payload.email;
+          state.error = action.payload.message;
+        } else {
+          state.error = action.payload?.message || action.payload;
+        }
+      })
 
-      // OTP verify — step 2: sets user + token
+      // Login OTP verify — step 2
       .addCase(verifyOtpThunk.pending, pending)
       .addCase(verifyOtpThunk.fulfilled, fulfilled)
-      .addCase(verifyOtpThunk.rejected, rejected)
+      .addCase(verifyOtpThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Signup OTP verify — activates account + logs in
+      .addCase(verifySignupOtpThunk.pending, pending)
+      .addCase(verifySignupOtpThunk.fulfilled, fulfilled)
+      .addCase(verifySignupOtpThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
 
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.user = action.payload.user;

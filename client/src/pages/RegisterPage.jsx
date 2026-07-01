@@ -6,12 +6,14 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { registerUser } from "../store/authSlice";
 import useAuth from "../hooks/useAuth";
+import { useSelector } from "react-redux";
 
 export default function RegisterPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, loading, error, clearError } = useAuth();
+  const requiresVerification = useSelector((s) => s.auth.requiresVerification);
 
   const [form, setForm] = useState({
     name: "",
@@ -31,6 +33,10 @@ export default function RegisterPage() {
       clearError();
     }
   }, [error]);
+
+  useEffect(() => {
+    if (requiresVerification) navigate("/verify-email");
+  }, [requiresVerification, navigate]);
 
   const handleChange = (e) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
