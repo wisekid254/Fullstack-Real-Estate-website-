@@ -6,3 +6,4 @@ dist/
 /var/log/mongodb
 mongodb.tgz
 mongodb-linux-*
+server/.env
