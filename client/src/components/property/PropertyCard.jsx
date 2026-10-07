@@ -5,10 +5,23 @@ import toast from "react-hot-toast";
 import userService from "../../services/userService";
 import useAuth from "../../hooks/useAuth";
 import { formatPriceWithType, formatArea } from "../../utils/format";
-export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
+
+export default function PropertyCard({
+  listing,
+  index = 0,
+  savedIds = [],
+}) {
   const { isAuthenticated } = useAuth();
+
+  // Prevent the entire page from crashing if listing is missing.
+  if (!listing || !listing._id) {
+    return null;
+  }
+
   const [imgError, setImgError] = useState(false);
-  const [saved, setSaved] = useState(savedIds.includes(listing._id));
+  const [saved, setSaved] = useState(
+    savedIds.includes(listing._id)
+  );
   const [saving, setSaving] = useState(false);
 
   const {
@@ -27,16 +40,22 @@ export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+
     if (!isAuthenticated) {
       toast.error("Sign in to save properties");
       return;
     }
+
     setSaving(true);
+
     try {
       const data = await userService.saveListing(_id);
+
       setSaved(data.saved);
       toast.success(data.message);
-    } catch {
+    } catch (error) {
+      console.error("Failed to save property:", error);
       toast.error("Failed to save property");
     } finally {
       setSaving(false);
@@ -47,16 +66,20 @@ export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
     <motion.div
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.06 }}
+      transition={{
+        duration: 0.35,
+        delay: index * 0.06,
+      }}
     >
       <Link to={`/listings/${_id}`} className="block group">
         <div className="card overflow-hidden">
+
           {/* Image */}
           <div className="relative h-52 bg-surface-100 overflow-hidden">
             {imageUrl && !imgError ? (
               <img
                 src={imageUrl}
-                alt={title}
+                alt={title || "Property"}
                 onError={() => setImgError(true)}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
@@ -81,10 +104,15 @@ export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
             {/* Badges */}
             <div className="absolute top-3 left-3 flex gap-2">
               <span
-                className={`badge ${type === "rent" ? "badge-green" : "badge-blue"}`}
+                className={`badge ${
+                  type === "rent"
+                    ? "badge-green"
+                    : "badge-blue"
+                }`}
               >
-                For {type}
+                For {type || "sale"}
               </span>
+
               {featured && (
                 <span className="badge bg-amber-50 text-amber-800">
                   Featured
@@ -94,12 +122,22 @@ export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
 
             {/* Save button */}
             <button
+              type="button"
               onClick={handleSave}
               disabled={saving}
+              aria-label={
+                saved
+                  ? "Remove property from saved properties"
+                  : "Save property"
+              }
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-50"
             >
               <svg
-                className={`w-4 h-4 transition-colors ${saved ? "text-red-500 fill-red-500" : "text-surface-400"}`}
+                className={`w-4 h-4 transition-colors ${
+                  saved
+                    ? "text-red-500 fill-red-500"
+                    : "text-surface-400"
+                }`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -120,13 +158,16 @@ export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
               <p className="text-lg font-semibold text-surface-900">
                 {formatPriceWithType(price, type)}
               </p>
+
               <span className="text-xs text-surface-500 capitalize mt-1">
-                {category}
+                {category || "Property"}
               </span>
             </div>
+
             <h3 className="text-sm font-medium text-surface-800 mb-1 line-clamp-1 group-hover:text-brand-500 transition-colors">
-              {title}
+              {title || "Untitled Property"}
             </h3>
+
             <div className="flex items-center gap-1 mb-3">
               <svg
                 className="w-3.5 h-3.5 text-surface-400 flex-shrink-0"
@@ -140,25 +181,43 @@ export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
                   strokeLinejoin="round"
                   d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
                 />
+
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                 />
               </svg>
+
               <span className="text-xs text-surface-500 truncate">
-                {location?.address}, {location?.city}
+                {location?.address || "Location not provided"}
+                {location?.city
+                  ? `, ${location.city}`
+                  : ""}
               </span>
             </div>
+
+            {/* Property Features */}
             <div className="flex items-center gap-4 pt-3 border-t border-surface-100">
               {features?.bedrooms > 0 && (
-                <FeaturePill icon="bed" value={`${features.bedrooms} bd`} />
+                <FeaturePill
+                  icon="bed"
+                  value={`${features.bedrooms} bd`}
+                />
               )}
+
               {features?.bathrooms > 0 && (
-                <FeaturePill icon="bath" value={`${features.bathrooms} ba`} />
+                <FeaturePill
+                  icon="bath"
+                  value={`${features.bathrooms} ba`}
+                />
               )}
+
               {features?.area > 0 && (
-                <FeaturePill icon="area" value={formatArea(features.area)} />
+                <FeaturePill
+                  icon="area"
+                  value={formatArea(features.area)}
+                />
               )}
             </div>
           </div>
@@ -171,9 +230,12 @@ export default function PropertyCard({ listing, index = 0, savedIds = [] }) {
 function FeaturePill({ icon, value }) {
   const icons = {
     bed: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+
     bath: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
+
     area: "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4",
   };
+
   return (
     <div className="flex items-center gap-1 text-xs text-surface-600">
       <svg
@@ -183,9 +245,15 @@ function FeaturePill({ icon, value }) {
         stroke="currentColor"
         strokeWidth={1.5}
       >
-        <path strokeLinecap="round" strokeLinejoin="round" d={icons[icon]} />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d={icons[icon]}
+        />
       </svg>
+
       {value}
     </div>
   );
 }
+

@@ -8,6 +8,8 @@ import inquiryService from "../services/inquiryService";
 import useAuth from "../hooks/useAuth";
 import SEO from "../components/common/SEO";
 import { formatPriceWithType, formatArea, formatDate } from "../utils/format";
+import ValuationWidget from "../components/ai/ValuationWidget";
+import PropertyReviews from "../components/property/PropertyReviews";
 
 const AMENITY_ICONS = {
   Pool: "M3 12h18M3 6h18M3 18h18",
@@ -303,6 +305,14 @@ export default function PropertyDetailPage() {
             </motion.div>
           )}
         </div>
+        {/* Property Reviews */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <PropertyReviews listingId={id} />
+        </motion.div>
 
         {/* ── Right column ─────────────────────────────── */}
         <div className="space-y-6">
@@ -418,6 +428,7 @@ export default function PropertyDetailPage() {
               </p>
             )}
           </motion.div>
+          <ValuationWidget listingId={id} />
         </div>
       </div>
     </div>

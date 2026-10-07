@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import useAuth from "../../hooks/useAuth";
+import NotificationBell from "./NotificationBell";
 
 const NAV_LINKS = [
   { label: "Buy", to: "/listings?type=sale" },
@@ -11,7 +12,6 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const { user, isAuthenticated, isAdmin, canPostProperty, logout } = useAuth();
-
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -23,7 +23,6 @@ export default function Navbar() {
         setDropdownOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -58,27 +57,37 @@ export default function Navbar() {
             nestHaven
           </Link>
 
-          {/* Desktop nav links */}
+          {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">
             {NAV_LINKS.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
                 className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-brand-50 text-brand-600"
-                      : "text-surface-600 hover:text-surface-900 hover:bg-surface-100"
-                  }`
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors " +
+                  (isActive
+                    ? "bg-brand-50 text-brand-600"
+                    : "text-surface-600 hover:text-surface-900 hover:bg-surface-100")
                 }
               >
                 {link.label}
               </NavLink>
             ))}
+            <NavLink
+              to="/mortgage-calculator"
+              className={({ isActive }) =>
+                "px-4 py-2 rounded-lg text-sm font-medium transition-colors " +
+                (isActive
+                  ? "bg-brand-50 text-brand-600"
+                  : "text-surface-600 hover:text-surface-900 hover:bg-surface-100")
+              }
+            >
+              Calculator
+            </NavLink>
           </nav>
 
-          {/* Desktop right side */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Desktop right */}
+          <div className="hidden md:flex items-center gap-2">
             {isAuthenticated ? (
               <>
                 {canPostProperty && (
@@ -90,23 +99,34 @@ export default function Navbar() {
                   </Link>
                 )}
 
+                {/* Notification bell */}
+                <NotificationBell />
+
+                {/* User dropdown */}
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen((o) => !o)}
                     className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-surface-100 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-800 text-xs font-semibold flex items-center justify-center">
-                      {getInitials(user?.name)}
-                    </div>
-
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-800 text-xs font-semibold flex items-center justify-center">
+                        {getInitials(user?.name)}
+                      </div>
+                    )}
                     <span className="text-sm text-surface-700 font-medium">
                       {user?.name?.split(" ")[0]}
                     </span>
-
                     <svg
-                      className={`w-4 h-4 text-surface-400 transition-transform duration-200 ${
-                        dropdownOpen ? "rotate-180" : ""
-                      }`}
+                      className={
+                        "w-4 h-4 text-surface-400 transition-transform duration-200 " +
+                        (dropdownOpen ? "rotate-180" : "")
+                      }
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -136,21 +156,21 @@ export default function Navbar() {
                           <p className="text-xs text-surface-500 truncate">
                             {user?.email}
                           </p>
+                          <span className="text-xs bg-brand-50 text-brand-600 px-1.5 py-0.5 rounded-full capitalize mt-1 inline-block">
+                            {user?.role}
+                          </span>
                         </div>
-
                         <div className="p-1.5">
                           <DropdownItem
                             to="/profile"
                             onClick={() => setDropdownOpen(false)}
                             label="My profile"
                           />
-
                           <DropdownItem
                             to="/saved"
                             onClick={() => setDropdownOpen(false)}
                             label="Saved properties"
                           />
-
                           {canPostProperty && (
                             <DropdownItem
                               to="/listings/create"
@@ -158,7 +178,13 @@ export default function Navbar() {
                               label="Post a property"
                             />
                           )}
-
+                          {canPostProperty && (
+                            <DropdownItem
+                              to="/premium"
+                              onClick={() => setDropdownOpen(false)}
+                              label="Promote listing"
+                            />
+                          )}
                           {isAdmin && (
                             <DropdownItem
                               to="/admin"
@@ -166,9 +192,7 @@ export default function Navbar() {
                               label="Admin dashboard"
                             />
                           )}
-
                           <hr className="my-1 border-surface-100" />
-
                           <button
                             onClick={handleLogout}
                             className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -186,8 +210,7 @@ export default function Navbar() {
                 <Link to="/login" className="btn-secondary px-4 py-2 text-sm">
                   Sign in
                 </Link>
-
-                <Link to="/register" className="btn-primary px-4 py-2 text-sm">
+                <Link to="/register" className="btn-primary  px-4 py-2 text-sm">
                   Get started
                 </Link>
               </>
@@ -198,7 +221,6 @@ export default function Navbar() {
           <button
             onClick={() => setMobileMenuOpen((o) => !o)}
             className="md:hidden p-2 rounded-lg text-surface-600 hover:bg-surface-100 transition-colors"
-            aria-label="Toggle menu"
           >
             <svg
               className="w-5 h-5"
@@ -246,16 +268,28 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
-
+              <Link
+                to="/mortgage-calculator"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2.5 rounded-lg text-sm text-surface-700 hover:bg-surface-100 transition-colors"
+              >
+                Mortgage Calculator
+              </Link>
               <hr className="border-surface-200 my-2" />
-
               {isAuthenticated ? (
                 <>
                   <div className="flex items-center gap-3 px-3 py-2">
-                    <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-800 text-sm font-semibold flex items-center justify-center">
-                      {getInitials(user?.name)}
-                    </div>
-
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
+                        className="w-9 h-9 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-800 text-sm font-semibold flex items-center justify-center">
+                        {getInitials(user?.name)}
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-medium text-surface-900">
                         {user?.name}
@@ -263,9 +297,7 @@ export default function Navbar() {
                       <p className="text-xs text-surface-500">{user?.email}</p>
                     </div>
                   </div>
-
                   <hr className="border-surface-200 my-1" />
-
                   <Link
                     to="/profile"
                     onClick={() => setMobileMenuOpen(false)}
@@ -273,7 +305,6 @@ export default function Navbar() {
                   >
                     My profile
                   </Link>
-
                   <Link
                     to="/saved"
                     onClick={() => setMobileMenuOpen(false)}
@@ -281,7 +312,6 @@ export default function Navbar() {
                   >
                     Saved properties
                   </Link>
-
                   {canPostProperty && (
                     <Link
                       to="/listings/create"
@@ -291,7 +321,15 @@ export default function Navbar() {
                       Post a property
                     </Link>
                   )}
-
+                  {canPostProperty && (
+                    <Link
+                      to="/premium"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block px-3 py-2.5 rounded-lg text-sm text-surface-700 hover:bg-surface-100 transition-colors"
+                    >
+                      Promote listing
+                    </Link>
+                  )}
                   {isAdmin && (
                     <Link
                       to="/admin"
@@ -301,7 +339,6 @@ export default function Navbar() {
                       Admin dashboard
                     </Link>
                   )}
-
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -318,11 +355,10 @@ export default function Navbar() {
                   >
                     Sign in
                   </Link>
-
                   <Link
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="btn-primary w-full text-center py-2.5"
+                    className="btn-primary  w-full text-center py-2.5"
                   >
                     Get started
                   </Link>

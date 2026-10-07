@@ -6,6 +6,7 @@ import listingService from "../services/listingService";
 import uploadService from "../services/uploadService";
 import SEO from "../components/common/SEO";
 import useAuth from "../hooks/useAuth";
+import aiService from "../services/aiService";
 
 const CATEGORIES = ["house", "apartment", "villa", "land", "commercial"];
 
@@ -52,573 +53,786 @@ const DEFAULT_FORM = {
 export default function CreateListingPage() {
   const navigate = useNavigate();
 
+  // =========================
+  // STATE
+  // =========================
   const [form, setForm] = useState(DEFAULT_FORM);
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
+  // FIX:
+  // This hook must be inside the component
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+
   const { canPostProperty } = useAuth();
 
+  // =========================
+  // ACCESS CHECK
+  // =========================
   if (!canPostProperty) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <div className="w-16 h-16 bg-surface-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg
-            className="w-8 h-8 text-surface-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">
+            Access Restricted
+          </h1>
+
+          <p className="text-gray-600 mb-6">
+            You do not have permission to post a property.
+          </p>
+
+          <button
+            onClick={() => navigate("/")}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-          </svg>
-        </div>
-        <h2 className="text-xl font-semibold text-surface-900 mb-2">
-          Agents only
-        </h2>
-        <p className="text-surface-500 text-sm mb-6">
-          Only verified agents and admins can post property listings. If you are
-          an agent, please register with an agent account.
-        </p>
-        <div className="flex gap-3 justify-center">
-          <a href="/register?role=agent" className="btn-primary px-6">
-            Register as agent
-          </a>
-          <a href="/listings" className="btn-secondary px-6">
-            Browse listings
-          </a>
+            Go Home
+          </button>
         </div>
       </div>
     );
   }
 
-  // ── Field helpers ─────────────────────────────────────
+  // =========================
+  // FORM FIELD HANDLER
+  // =========================
   const setField = (path, value) => {
+    const keys = path.split(".");
+
     setForm((prev) => {
-      const next = { ...prev };
-      const keys = path.split(".");
-      let obj = next;
-      keys.slice(0, -1).forEach((k) => {
-        obj[k] = { ...obj[k] };
-        obj = obj[k];
-      });
-      obj[keys[keys.length - 1]] = value;
-      return next;
+      const updated = { ...prev };
+      let current = updated;
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        current[keys[i]] = {
+          ...current[keys[i]],
+        };
+
+        current = current[keys[i]];
+      }
+
+      current[keys[keys.length - 1]] = value;
+
+      return updated;
     });
   };
 
-  const toggleAmenity = (a) => {
+  // =========================
+  // AMENITY HANDLER
+  // =========================
+  const toggleAmenity = (amenity) => {
     setForm((prev) => ({
       ...prev,
-      amenities: prev.amenities.includes(a)
-        ? prev.amenities.filter((x) => x !== a)
-        : [...prev.amenities, a],
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter((item) => item !== amenity)
+        : [...prev.amenities, amenity],
     }));
   };
 
-  // ── Image handling ────────────────────────────────────
+  // =========================
+  // FILE HANDLER
+  // =========================
   const handleFiles = (e) => {
-    const selected = Array.from(e.target.files);
-    if (selected.length + files.length > 5) {
-      toast.error("Maximum 5 images allowed");
+    const selectedFiles = Array.from(e.target.files || []);
+
+    if (!selectedFiles.length) return;
+
+    const newFiles = [...files, ...selectedFiles];
+
+    setFiles(newFiles);
+
+    const newPreviews = selectedFiles.map((file) => URL.createObjectURL(file));
+
+    setPreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  // =========================
+  // REMOVE FILE
+  // =========================
+  const removeFile = (index) => {
+    URL.revokeObjectURL(previews[index]);
+
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // =========================
+  // AI DESCRIPTION GENERATOR
+  // =========================
+  const generateDescription = async () => {
+    if (!form.title) {
+      toast.error("Please enter a title first");
       return;
     }
-    setFiles((f) => [...f, ...selected]);
-    selected.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) =>
-        setPreviews((p) => [...p, { url: ev.target.result, name: file.name }]);
-      reader.readAsDataURL(file);
-    });
+
+    setGeneratingDesc(true);
+
+    try {
+      const data = await aiService.generateDescription({
+        title: form.title,
+        category: form.category,
+        type: form.type,
+        price: form.price,
+        location: form.location,
+        features: form.features,
+        amenities: form.amenities,
+      });
+
+      setField("description", data.description);
+
+      toast.success("AI description generated!");
+    } catch (err) {
+      console.error("AI description generation error:", err);
+
+      toast.error(
+        err?.response?.data?.message || "Failed to generate description",
+      );
+    } finally {
+      setGeneratingDesc(false);
+    }
   };
 
-  const removeFile = (index) => {
-    setFiles((f) => f.filter((_, i) => i !== index));
-    setPreviews((p) => p.filter((_, i) => i !== index));
-  };
-
-  // ── Submit ─────────────────────────────────────────────
+  // =========================
+  // FORM SUBMIT
+  // =========================
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (files.length === 0) {
-      toast.error("Please upload at least one image");
+
+    if (!form.title.trim()) {
+      toast.error("Please enter a property title");
       return;
     }
-    setLoading(true);
-    try {
-      toast.loading("Uploading images…", { id: "upload" });
-      const { images } = await uploadService.uploadImages(files);
-      toast.success("Images uploaded", { id: "upload" });
 
-      const payload = {
+    if (!form.description.trim()) {
+      toast.error("Please enter a property description");
+      return;
+    }
+
+    if (!form.price) {
+      toast.error("Please enter a property price");
+      return;
+    }
+
+    if (!form.location.address || !form.location.city) {
+      toast.error("Please enter the property location");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      let uploadedImages = [];
+
+      // Upload images first
+      if (files.length > 0) {
+        const uploadResponse = await uploadService.uploadImages(files);
+
+        uploadedImages =
+          uploadResponse?.images || uploadResponse?.data?.images || [];
+      }
+
+      const listingData = {
         ...form,
         price: Number(form.price),
-        images,
+
         features: {
-          bedrooms: Number(form.features.bedrooms) || 0,
-          bathrooms: Number(form.features.bathrooms) || 0,
-          area: Number(form.features.area) || 0,
-          parking: Number(form.features.parking) || 0,
-          furnished: form.features.furnished,
-          yearBuilt: Number(form.features.yearBuilt) || null,
+          ...form.features,
+          bedrooms: form.features.bedrooms ? Number(form.features.bedrooms) : 0,
+          bathrooms: form.features.bathrooms
+            ? Number(form.features.bathrooms)
+            : 0,
+          area: form.features.area ? Number(form.features.area) : 0,
+          parking: form.features.parking ? Number(form.features.parking) : 0,
+          yearBuilt: form.features.yearBuilt
+            ? Number(form.features.yearBuilt)
+            : null,
         },
-        location: {
-          address: form.location.address,
-          city: form.location.city,
-          country: form.location.country,
-          lat: form.location.lat ? Number(form.location.lat) : null,
-          lng: form.location.lng ? Number(form.location.lng) : null,
-        },
+
+        images: uploadedImages,
       };
 
-      const data = await listingService.createListing(payload);
-      toast.success("Listing published!");
-      navigate(`/listings/${data.listing._id}`);
+      await listingService.createListing(listingData);
+
+      toast.success("Property listed successfully!");
+
+      navigate("/listings");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to create listing");
+      console.error("Create listing error:", err);
+
+      toast.error(
+        err?.response?.data?.message || "Failed to create property listing",
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // =========================
+  // STEP VALIDATION
+  // =========================
   const canProceed = () => {
-    if (step === 1) return form.title && form.description && form.price;
-    if (step === 2) return form.location.address && form.location.city;
-    return true;
+    if (step === 1) {
+      return form.title.trim() && form.description.trim() && form.price;
+    }
+
+    if (step === 2) {
+      return form.location.address.trim() && form.location.city.trim();
+    }
+
+    if (step === 3) {
+      return true;
+    }
+
+    if (step === 4) {
+      return files.length > 0;
+    }
+
+    return false;
   };
 
   const STEPS = ["Basic info", "Location", "Features", "Photos"];
 
+  // =========================
+  // UI
+  // =========================
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <>
       <SEO
-        title="Post a property"
-        description="List your property on nestHaven and reach thousands of buyers and renters."
+        title="Create Property Listing | nestHaven"
+        description="Create and publish a new property listing on nestHaven."
       />
 
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <h1 className="text-display-md text-surface-900 mb-1">
-          Create a listing
-        </h1>
-        <p className="text-surface-500 text-sm mb-8">
-          Fill in the details below to post your property
-        </p>
-      </motion.div>
+      <div className="min-h-screen bg-gray-50 py-10">
+        <div className="max-w-5xl mx-auto px-4">
+          {/* HEADER */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Create Property Listing
+            </h1>
 
-      {/* Step indicator */}
-      <div className="flex items-center mb-8">
-        {STEPS.map((label, i) => (
-          <div key={label} className="flex items-center flex-1 last:flex-none">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => i + 1 < step && setStep(i + 1)}
-                className={`w-8 h-8 rounded-full text-sm font-semibold flex items-center justify-center transition-colors ${
-                  step === i + 1
-                    ? "bg-brand-500 text-white"
-                    : step > i + 1
-                      ? "bg-brand-100 text-brand-700 cursor-pointer hover:bg-brand-200"
-                      : "bg-surface-100 text-surface-400"
-                }`}
-              >
-                {step > i + 1 ? "✓" : i + 1}
-              </button>
-              <span
-                className={`text-sm hidden sm:block whitespace-nowrap ${
-                  step === i + 1
-                    ? "text-surface-900 font-medium"
-                    : "text-surface-400"
-                }`}
-              >
-                {label}
-              </span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div
-                className={`flex-1 h-px mx-3 ${step > i + 1 ? "bg-brand-300" : "bg-surface-200"}`}
-              />
-            )}
+            <p className="text-gray-600 mt-2">
+              Add your property details and publish it on nestHaven.
+            </p>
           </div>
-        ))}
-      </div>
 
-      <form onSubmit={handleSubmit}>
-        <motion.div
-          key={step}
-          initial={{ opacity: 0, x: 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.25 }}
-          className="card p-6 space-y-5"
-        >
-          {/* ── Step 1: Basic info ───────────────────── */}
-          {step === 1 && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                  Title *
-                </label>
-                <input
-                  value={form.title}
-                  onChange={(e) => setField("title", e.target.value)}
-                  placeholder="e.g. Modern 3-Bedroom Apartment in Westlands"
-                  className="input"
-                  required
-                />
-              </div>
+          {/* STEPS */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              {STEPS.map((stepName, index) => {
+                const stepNumber = index + 1;
+                const active = step === stepNumber;
 
-              <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                  Description *
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setField("description", e.target.value)}
-                  placeholder="Describe the property in detail…"
-                  rows={5}
-                  className="input resize-none"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    Listing type *
-                  </label>
-                  <select
-                    value={form.type}
-                    onChange={(e) => setField("type", e.target.value)}
-                    className="input"
-                  >
-                    <option value="sale">For sale</option>
-                    <option value="rent">For rent</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    Category *
-                  </label>
-                  <select
-                    value={form.category}
-                    onChange={(e) => setField("category", e.target.value)}
-                    className="input"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c} className="capitalize">
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                  Price (KES) *
-                  {form.type === "rent" && (
-                    <span className="text-surface-400 font-normal ml-1">
-                      — per month
-                    </span>
-                  )}
-                </label>
-                <input
-                  type="number"
-                  value={form.price}
-                  onChange={(e) => setField("price", e.target.value)}
-                  placeholder="e.g. 15000000"
-                  min={0}
-                  className="input"
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          {/* ── Step 2: Location ─────────────────────── */}
-          {step === 2 && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                  Street address *
-                </label>
-                <input
-                  value={form.location.address}
-                  onChange={(e) => setField("location.address", e.target.value)}
-                  placeholder="e.g. 14 Riverside Drive"
-                  className="input"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    City *
-                  </label>
-                  <input
-                    value={form.location.city}
-                    onChange={(e) => setField("location.city", e.target.value)}
-                    placeholder="e.g. Nairobi"
-                    className="input"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    Country
-                  </label>
-                  <input
-                    value={form.location.country}
-                    onChange={(e) =>
-                      setField("location.country", e.target.value)
-                    }
-                    className="input"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    Latitude{" "}
-                    <span className="text-surface-400 font-normal">
-                      (optional)
-                    </span>
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={form.location.lat}
-                    onChange={(e) => setField("location.lat", e.target.value)}
-                    placeholder="-1.2921"
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    Longitude{" "}
-                    <span className="text-surface-400 font-normal">
-                      (optional)
-                    </span>
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={form.location.lng}
-                    onChange={(e) => setField("location.lng", e.target.value)}
-                    placeholder="36.8219"
-                    className="input"
-                  />
-                </div>
-              </div>
-
-              <p className="text-xs text-surface-400">
-                Tip: right-click your property location on Google Maps to copy
-                the coordinates
-              </p>
-            </>
-          )}
-
-          {/* ── Step 3: Features + amenities ─────────── */}
-          {step === 3 && (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {[
-                  { label: "Bedrooms", key: "bedrooms", placeholder: "3" },
-                  { label: "Bathrooms", key: "bathrooms", placeholder: "2" },
-                  { label: "Area (m²)", key: "area", placeholder: "150" },
-                  { label: "Parking", key: "parking", placeholder: "1" },
-                  {
-                    label: "Year built",
-                    key: "yearBuilt",
-                    placeholder: "2020",
-                  },
-                ].map((f) => (
-                  <div key={f.key}>
-                    <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                      {f.label}
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.features[f.key]}
-                      onChange={(e) =>
-                        setField(`features.${f.key}`, e.target.value)
-                      }
-                      placeholder={f.placeholder}
-                      className="input"
-                    />
-                  </div>
-                ))}
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1.5">
-                    Furnished
-                  </label>
-                  <select
-                    value={form.features.furnished}
-                    onChange={(e) =>
-                      setField("features.furnished", e.target.value === "true")
-                    }
-                    className="input"
-                  >
-                    <option value="false">No</option>
-                    <option value="true">Yes</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-surface-700 mb-3">
-                  Amenities
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {AMENITY_OPTIONS.map((a) => (
-                    <button
-                      type="button"
-                      key={a}
-                      onClick={() => toggleAmenity(a)}
-                      className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                        form.amenities.includes(a)
-                          ? "bg-brand-500 text-white border-brand-500"
-                          : "border-surface-200 text-surface-600 hover:border-brand-300"
+                return (
+                  <div key={stepName} className="flex items-center">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+                        active
+                          ? "bg-blue-600 text-white"
+                          : step > stepNumber
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-200 text-gray-600"
                       }`}
                     >
-                      {a}
-                    </button>
-                  ))}
+                      {stepNumber}
+                    </div>
+
+                    <span
+                      className={`ml-2 hidden sm:block ${
+                        active ? "text-blue-600 font-semibold" : "text-gray-500"
+                      }`}
+                    >
+                      {stepName}
+                    </span>
+
+                    {index < STEPS.length - 1 && (
+                      <div className="w-10 sm:w-20 h-px bg-gray-300 mx-3" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* FORM */}
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8"
+          >
+            {/* =========================
+                STEP 1
+            ========================= */}
+            {step === 1 && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+              >
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Basic Information
+                  </h2>
+
+                  <p className="text-gray-500 mt-1">
+                    Tell potential buyers or tenants about your property.
+                  </p>
                 </div>
-              </div>
-            </>
-          )}
 
-          {/* ── Step 4: Photos ───────────────────────── */}
-          {step === 4 && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-surface-700 mb-3">
-                  Property photos *
-                  <span className="text-surface-400 font-normal ml-1">
-                    — up to 5 images, max 5MB each
-                  </span>
-                </label>
+                {/* TITLE */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Property Title
+                  </label>
 
-                <label
-                  className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-xl transition-colors ${
-                    files.length >= 5
-                      ? "border-surface-100 bg-surface-50 cursor-not-allowed"
-                      : "border-surface-200 cursor-pointer hover:border-brand-300 hover:bg-brand-50"
-                  }`}
-                >
-                  <svg
-                    className="w-8 h-8 text-surface-300 mb-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={(e) => setField("title", e.target.value)}
+                    placeholder="e.g. Modern 3 Bedroom Apartment in Kilimani"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                {/* TYPE + CATEGORY */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Listing Type
+                    </label>
+
+                    <select
+                      value={form.type}
+                      onChange={(e) => setField("type", e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="sale">For Sale</option>
+                      <option value="rent">For Rent</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Category
+                    </label>
+
+                    <select
+                      value={form.category}
+                      onChange={(e) => setField("category", e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {category.charAt(0).toUpperCase() + category.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* PRICE */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Price (KES)
+                  </label>
+
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.price}
+                    onChange={(e) => setField("price", e.target.value)}
+                    placeholder="e.g. 15000000"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                {/* DESCRIPTION + AI */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Property Description
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={generateDescription}
+                      disabled={generatingDesc}
+                      className="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      {generatingDesc ? "Generating..." : "✨ Generate with AI"}
+                    </button>
+                  </div>
+
+                  <textarea
+                    rows={7}
+                    value={form.description}
+                    onChange={(e) => setField("description", e.target.value)}
+                    placeholder="Describe the property, its features, location and benefits..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                  />
+
+                  <p className="text-xs text-gray-500 mt-2">
+                    Enter a title and property details, then use AI to generate
+                    a professional description.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* =========================
+                STEP 2
+            ========================= */}
+            {step === 2 && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+              >
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Property Location
+                  </h2>
+
+                  <p className="text-gray-500 mt-1">
+                    Where is the property located?
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address
+                  </label>
+
+                  <input
+                    type="text"
+                    value={form.location.address}
+                    onChange={(e) =>
+                      setField("location.address", e.target.value)
+                    }
+                    placeholder="Street, building or estate"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      City
+                    </label>
+
+                    <input
+                      type="text"
+                      value={form.location.city}
+                      onChange={(e) =>
+                        setField("location.city", e.target.value)
+                      }
+                      placeholder="e.g. Nairobi"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                     />
-                  </svg>
-                  <p className="text-sm text-surface-500">
-                    {files.length >= 5
-                      ? "Maximum photos reached"
-                      : "Click to upload photos"}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Country
+                    </label>
+
+                    <input
+                      type="text"
+                      value={form.location.country}
+                      onChange={(e) =>
+                        setField("location.country", e.target.value)
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Latitude
+                    </label>
+
+                    <input
+                      type="number"
+                      value={form.location.lat}
+                      onChange={(e) => setField("location.lat", e.target.value)}
+                      placeholder="Optional"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Longitude
+                    </label>
+
+                    <input
+                      type="number"
+                      value={form.location.lng}
+                      onChange={(e) => setField("location.lng", e.target.value)}
+                      placeholder="Optional"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* =========================
+                STEP 3
+            ========================= */}
+            {step === 3 && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+              >
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Property Features
+                  </h2>
+
+                  <p className="text-gray-500 mt-1">
+                    Add important features and amenities.
                   </p>
-                  <p className="text-xs text-surface-400 mt-1">
-                    JPG, PNG, WebP
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Bedrooms
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.features.bedrooms}
+                      onChange={(e) =>
+                        setField("features.bedrooms", e.target.value)
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Bathrooms
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.features.bathrooms}
+                      onChange={(e) =>
+                        setField("features.bathrooms", e.target.value)
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Area (m²)
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.features.area}
+                      onChange={(e) =>
+                        setField("features.area", e.target.value)
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Parking Spaces
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.features.parking}
+                      onChange={(e) =>
+                        setField("features.parking", e.target.value)
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Year Built
+                    </label>
+
+                    <input
+                      type="number"
+                      value={form.features.yearBuilt}
+                      onChange={(e) =>
+                        setField("features.yearBuilt", e.target.value)
+                      }
+                      placeholder="e.g. 2024"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-8">
+                    <input
+                      type="checkbox"
+                      checked={form.features.furnished}
+                      onChange={(e) =>
+                        setField("features.furnished", e.target.checked)
+                      }
+                      className="w-5 h-5"
+                    />
+
+                    <label className="text-sm font-medium text-gray-700">
+                      Furnished
+                    </label>
+                  </div>
+                </div>
+
+                {/* AMENITIES */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Amenities
+                  </h3>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {AMENITY_OPTIONS.map((amenity) => {
+                      const selected = form.amenities.includes(amenity);
+
+                      return (
+                        <button
+                          type="button"
+                          key={amenity}
+                          onClick={() => toggleAmenity(amenity)}
+                          className={`px-4 py-3 rounded-xl border text-sm transition ${
+                            selected
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:border-blue-500"
+                          }`}
+                        >
+                          {amenity}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* =========================
+                STEP 4
+            ========================= */}
+            {step === 4 && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+              >
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Property Photos
+                  </h2>
+
+                  <p className="text-gray-500 mt-1">
+                    Upload high-quality photos of your property.
                   </p>
+                </div>
+
+                {/* UPLOAD */}
+                <label className="block border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center cursor-pointer hover:border-blue-500 transition">
                   <input
                     type="file"
                     multiple
                     accept="image/*"
                     onChange={handleFiles}
                     className="hidden"
-                    disabled={files.length >= 5}
                   />
+
+                  <div className="text-5xl mb-4">📷</div>
+
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Upload Property Photos
+                  </h3>
+
+                  <p className="text-gray-500 text-sm mt-2">
+                    Click to select multiple images
+                  </p>
                 </label>
-              </div>
 
-              {previews.length > 0 && (
-                <div className="grid grid-cols-3 gap-3">
-                  {previews.map((p, i) => (
-                    <div
-                      key={i}
-                      className="relative group rounded-xl overflow-hidden h-28 bg-surface-100"
-                    >
-                      <img
-                        src={p.url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeFile(i)}
-                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                {/* PREVIEWS */}
+                {previews.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {previews.map((preview, index) => (
+                      <div
+                        key={preview}
+                        className="relative group rounded-xl overflow-hidden"
                       >
-                        ✕
-                      </button>
-                      {i === 0 && (
-                        <span className="absolute bottom-2 left-2 text-xs bg-black/60 text-white px-2 py-0.5 rounded-full">
-                          Cover
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        <img
+                          src={preview}
+                          alt={`Property preview ${index + 1}`}
+                          className="w-full h-40 object-cover"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-600 text-white opacity-0 group-hover:opacity-100 transition"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* =========================
+                NAVIGATION
+            ========================= */}
+            <div className="flex items-center justify-between mt-10 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  if (step === 1) {
+                    navigate(-1);
+                  } else {
+                    setStep((prev) => prev - 1);
+                  }
+                }}
+                className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+              >
+                {step === 1 ? "Cancel" : "Back"}
+              </button>
+
+              {step < STEPS.length ? (
+                <button
+                  type="button"
+                  disabled={!canProceed()}
+                  onClick={() => setStep((prev) => prev + 1)}
+                  className="px-7 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Continue
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={loading || !canProceed()}
+                  className="px-7 py-3 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {loading ? "Publishing..." : "Publish Property"}
+                </button>
               )}
-
-              {files.length > 0 && (
-                <p className="text-xs text-surface-400">
-                  {files.length} of 5 photos selected · First photo will be the
-                  cover image
-                </p>
-              )}
-            </>
-          )}
-        </motion.div>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-6">
-          <button
-            type="button"
-            onClick={() => setStep((s) => s - 1)}
-            className={`btn-secondary ${step === 1 ? "invisible" : ""}`}
-          >
-            ← Back
-          </button>
-
-          {step < 4 ? (
-            <button
-              type="button"
-              onClick={() => setStep((s) => s + 1)}
-              disabled={!canProceed()}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Continue →
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={loading || files.length === 0}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Publishing…" : "Publish listing"}
-            </button>
-          )}
+            </div>
+          </form>
         </div>
-      </form>
-    </div>
+      </div>
+    </>
   );
 }

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import PropertyCard from "../components/property/PropertyCard";
 import listingService from "../services/listingService";
 import SEO from "../components/common/SEO";
+import SmartSearch from "../components/ai/SmartSearch";
 
 const CATEGORIES = ["All", "house", "apartment", "villa", "land", "commercial"];
 const SORT_OPTIONS = [
@@ -85,6 +86,23 @@ export default function ListingsPage() {
       <div className="mb-6">
         <h1 className="text-display-md text-surface-900 mb-1">{pageTitle}</h1>
         <p className="text-surface-500 text-sm">{total} properties found</p>
+      </div>
+
+      {/* AI Smart Search */}
+      <div className="mb-6">
+        <p className="text-xs text-surface-500 uppercase tracking-wider font-medium mb-2 flex items-center gap-1.5">
+          <span className="w-4 h-4 bg-brand-500 rounded text-white text-xs flex items-center justify-center">
+            AI
+          </span>
+          Smart Search
+        </p>
+        <SmartSearch />
+      </div>
+
+      <div className="flex items-center gap-3 my-4">
+        <div className="flex-1 h-px bg-surface-200" />
+        <span className="text-xs text-surface-400">or use filters below</span>
+        <div className="flex-1 h-px bg-surface-200" />
       </div>
 
       {/* Search bar */}

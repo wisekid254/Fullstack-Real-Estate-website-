@@ -5,19 +5,25 @@ import { lazy, Suspense } from "react";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import ProtectedRoute from "./components/common/ProtectedRoute";
+import ChatBot from "./components/ai/ChatBot";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
 const ListingsPage = lazy(() => import("./pages/ListingsPage"));
 const PropertyDetailPage = lazy(() => import("./pages/PropertyDetailPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const VerifyOTPPage = lazy(() => import("./pages/VerifyOTPPage"));
+const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const CreateListingPage = lazy(() => import("./pages/CreateListingPage"));
-const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 const AgentsPage = lazy(() => import("./pages/AgentsPage"));
-const VerifyOTPPage = lazy(() => import("./pages/VerifyOTPPage"));
-const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
+const AgentProfilePage = lazy(() => import("./pages/AgentProfilePage"));
+const MortgageCalculatorPage = lazy(
+  () => import("./pages/MortgageCalculatorPage"),
+);
+const PremiumPage = lazy(() => import("./pages/PremiumPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 function PageLoader() {
   return (
@@ -38,42 +44,50 @@ function App() {
         <main className="flex-1">
           <Suspense fallback={<PageLoader />}>
             <Routes>
+              {/* Public routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/listings" element={<ListingsPage />} />
+              <Route path="/listings/:id" element={<PropertyDetailPage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/agents/:id" element={<AgentProfilePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              {/* past route when all used to post property */}
-              {/* <Route element={<ProtectedRoute />}>
-                <Route
-                  path="/listings/create"
-                  element={<CreateListingPage />}
-                />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/saved" element={<ProfilePage />} />
-              </Route> */}
+              <Route path="/verify-otp" element={<VerifyOTPPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route
+                path="/mortgage-calculator"
+                element={<MortgageCalculatorPage />}
+              />
+
+              {/* Protected — any logged in user */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/saved" element={<ProfilePage />} />
               </Route>
-              <Route element={<ProtectedRoute requireAgent />}>
+
+              {/* Protected — agents and admins only */}
+              <Route element={<ProtectedRoute requireAgent={true} />}>
                 <Route
                   path="/listings/create"
                   element={<CreateListingPage />}
                 />
+                <Route path="/premium" element={<PremiumPage />} />
               </Route>
-              <Route element={<ProtectedRoute requireAdmin />}>
+
+              {/* Protected — admin only */}
+              <Route element={<ProtectedRoute requireAdmin={true} />}>
                 <Route path="/admin" element={<AdminPage />} />
               </Route>
-              <Route path="/listings/:id" element={<PropertyDetailPage />} />
+
               <Route path="*" element={<NotFoundPage />} />
-              <Route path="/agents" element={<AgentsPage />} />
-              <Route path="/verify-otp" element={<VerifyOTPPage />} />
-              <Route path="/verify-email" element={<VerifyEmailPage />} />
             </Routes>
           </Suspense>
         </main>
         <Footer />
       </div>
+
+      <ChatBot />
+
       <Toaster
         position="top-right"
         toastOptions={{
