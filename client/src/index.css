@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    @apply bg-surface-50 text-surface-900 font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  img, video { max-width: 100%; display: block; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-brand-500 hover:bg-brand-600 active:bg-brand-800
+           text-white font-medium text-sm
+           px-5 py-2.5 rounded-xl
+           transition-all duration-150
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-white hover:bg-surface-100 border border-surface-200
+           text-surface-900 font-medium text-sm
+           px-5 py-2.5 rounded-xl
+           transition-all duration-150
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-surface-200
+           transition-shadow duration-200 hover:shadow-card-hover;
+  }
+  .input {
+    @apply w-full bg-white border border-surface-200
+           rounded-xl px-4 py-2.5 text-sm text-surface-900
+           placeholder:text-surface-600
+           focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent
+           transition-all duration-150;
+  }
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full; }
+  .badge-blue  { @apply bg-brand-50  text-brand-800; }
+  .badge-green { @apply bg-green-50  text-green-800; }
+  .badge-amber { @apply bg-amber-50  text-amber-800; }
+  .skeleton    { @apply bg-surface-200 rounded-lg animate-skeleton; }
+}

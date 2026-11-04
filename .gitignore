@@ -1,0 +1,9 @@
+node_modules/
+.env
+dist/
+.DS_Store
+/var/lib/mongodb
+/var/log/mongodb
+mongodb.tgz
+mongodb-linux-*
+server/.env
