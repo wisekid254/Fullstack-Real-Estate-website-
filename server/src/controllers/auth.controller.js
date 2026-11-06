@@ -36,6 +36,7 @@ export const register = async (req, res) => {
   try {
     await sendVerificationEmail({ to: email, name, otp });
   } catch (err) {
+    console.error("SIGNUP EMAIL ERROR:", err);
     throw new ApiError(
       "Failed to send verification email. Please try again.",
       500,
