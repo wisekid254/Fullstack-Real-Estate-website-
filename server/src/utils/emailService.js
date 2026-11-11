@@ -111,6 +111,24 @@ export const sendVerificationEmail = async ({ to, name, otp }) => {
   });
 };
 
+export const sendPasswordResetEmail = async ({ to, name, otp }) => {
+  await sendMail({
+    to,
+    subject: "Reset your nestHaven password",
+    html: layout(`
+      <p style="font-size: 18px; font-weight: 600; color: #111827;">Hi ${escapeHtml(name)},</p>
+      <p style="font-size: 14px; color: #6b7280; line-height: 1.6;">
+        We received a request to reset your password. Enter the code below on the
+        reset page to choose a new password.
+      </p>
+      ${otpBlock(otp)}
+      <p style="font-size: 13px; color: #92400e; background: #fef3c7; padding: 12px; border-radius: 8px;">
+        If you did not request a password reset, ignore this email. Your password will not change.
+      </p>
+    `),
+  });
+};
+
 export const sendWelcomeEmail = async ({ to, name }) => {
   await sendMail({
     to,

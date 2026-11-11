@@ -21,6 +21,14 @@ const authService = {
     const res = await api.post("/auth/resend-otp", { email, purpose });
     return res.data;
   },
+  forgotPassword: async (email) => {
+    const res = await api.post("/auth/forgot-password", { email });
+    return res.data;
+  },
+  resetPassword: async (data) => {
+    const res = await api.post("/auth/reset-password", data);
+    return res.data;
+  },
   getMe: async () => {
     const res = await api.get("/auth/me");
     return res.data;

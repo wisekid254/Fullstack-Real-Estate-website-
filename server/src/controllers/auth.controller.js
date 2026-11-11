@@ -4,9 +4,18 @@ import ApiError from "../utils/ApiError.js";
 import {
   sendOTPEmail,
   sendVerificationEmail,
+  sendPasswordResetEmail,
   sendWelcomeEmail,
 } from "../utils/emailService.js";
 import { generateOTP, storeOTP, verifyOTP } from "../utils/otpStore.js";
+
+const publicUser = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  avatar: user.avatar,
+});
 
 // POST /api/auth/register
 export const register = async (req, res) => {
@@ -29,14 +38,13 @@ export const register = async (req, res) => {
     isVerified: false,
   });
 
-  // Generate and send signup verification OTP
   const otp = generateOTP();
-  storeOTP(`signup:${email}`, otp);
+  await storeOTP("signup:" + email, otp);
 
   try {
     await sendVerificationEmail({ to: email, name, otp });
   } catch (err) {
-    console.error("SIGNUP EMAIL ERROR:", err);
+    console.error("Verification email error:", err.message);
     throw new ApiError(
       "Failed to send verification email. Please try again.",
       500,
@@ -51,13 +59,13 @@ export const register = async (req, res) => {
   });
 };
 
-// POST /api/auth/verify-signup-otp — confirms email, activates account, logs in
+// POST /api/auth/verify-signup-otp
 export const verifySignupOtp = async (req, res) => {
   const { email, otp } = req.body;
 
   if (!email || !otp) throw new ApiError("Email and OTP are required", 400);
 
-  const result = verifyOTP(`signup:${email}`, otp);
+  const result = await verifyOTP("signup:" + email, otp);
   if (!result.valid) throw new ApiError(result.message, 400);
 
   const user = await User.findOneAndUpdate(
@@ -72,17 +80,11 @@ export const verifySignupOtp = async (req, res) => {
   res.json({
     success: true,
     token: generateToken(user._id),
-    user: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-    },
+    user: publicUser(user),
   });
 };
 
-// POST /api/auth/login — Step 1: verify credentials, check verification, send login OTP
+// POST /api/auth/login (step 1)
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -93,11 +95,10 @@ export const login = async (req, res) => {
   if (!user || !(await user.matchPassword(password)))
     throw new ApiError("Invalid email or password", 401);
 
-  // Block unverified accounts — resend verification code
   if (!user.isVerified) {
-    const otp = generateOTP();
-    storeOTP(`signup:${email}`, otp);
-    sendVerificationEmail({ to: email, name: user.name, otp }).catch(
+    const signupOtp = generateOTP();
+    await storeOTP("signup:" + email, signupOtp);
+    sendVerificationEmail({ to: email, name: user.name, otp: signupOtp }).catch(
       console.error,
     );
 
@@ -109,13 +110,13 @@ export const login = async (req, res) => {
     });
   }
 
-  // Generate and send login OTP (2FA)
   const otp = generateOTP();
-  storeOTP(`login:${email}`, otp);
+  await storeOTP("login:" + email, otp);
 
   try {
     await sendOTPEmail({ to: email, name: user.name, otp });
   } catch (err) {
+    console.error("Login OTP email error:", err.message);
     throw new ApiError(
       "Failed to send verification email. Please try again.",
       500,
@@ -130,13 +131,13 @@ export const login = async (req, res) => {
   });
 };
 
-// POST /api/auth/verify-otp — Step 2: verify login OTP, return token
+// POST /api/auth/verify-otp (step 2)
 export const verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
 
   if (!email || !otp) throw new ApiError("Email and OTP are required", 400);
 
-  const result = verifyOTP(`login:${email}`, otp);
+  const result = await verifyOTP("login:" + email, otp);
   if (!result.valid) throw new ApiError(result.message, 400);
 
   const user = await User.findOne({ email });
@@ -145,39 +146,89 @@ export const verifyOtp = async (req, res) => {
   res.json({
     success: true,
     token: generateToken(user._id),
-    user: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-    },
+    user: publicUser(user),
   });
 };
 
-// POST /api/auth/resend-otp — purpose: 'signup' or 'login'
+// POST /api/auth/resend-otp
+// Responds the same whether or not the account exists
 export const resendOtp = async (req, res) => {
   const { email, purpose = "login" } = req.body;
 
   if (!email) throw new ApiError("Email is required", 400);
 
+  const allowedPurposes = ["login", "signup"];
+  if (!allowedPurposes.includes(purpose))
+    throw new ApiError("Invalid purpose", 400);
+
   const user = await User.findOne({ email });
-  if (!user) throw new ApiError("User not found", 404);
 
-  const otp = generateOTP();
-  storeOTP(`${purpose}:${email}`, otp);
+  if (user) {
+    const otp = generateOTP();
+    await storeOTP(purpose + ":" + email, otp);
 
-  try {
-    if (purpose === "signup") {
-      await sendVerificationEmail({ to: email, name: user.name, otp });
-    } else {
-      await sendOTPEmail({ to: email, name: user.name, otp });
+    try {
+      if (purpose === "signup") {
+        await sendVerificationEmail({ to: email, name: user.name, otp });
+      } else {
+        await sendOTPEmail({ to: email, name: user.name, otp });
+      }
+    } catch (err) {
+      console.error("Resend OTP email error:", err.message);
+      throw new ApiError("Failed to send verification email", 500);
     }
-  } catch (err) {
-    throw new ApiError("Failed to send verification email", 500);
   }
 
-  res.json({ success: true, message: "New verification code sent" });
+  res.json({
+    success: true,
+    message: "If the account exists, a new code has been sent",
+  });
+};
+
+// POST /api/auth/forgot-password
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) throw new ApiError("Email is required", 400);
+
+  const user = await User.findOne({ email });
+
+  if (user) {
+    const otp = generateOTP();
+    await storeOTP("reset:" + email, otp);
+
+    sendPasswordResetEmail({ to: email, name: user.name, otp }).catch((err) => {
+      console.error("Password reset email error:", err.message);
+    });
+  }
+
+  res.json({
+    success: true,
+    message: "If an account exists for that email, a reset code has been sent.",
+  });
+};
+
+// POST /api/auth/reset-password
+export const resetPassword = async (req, res) => {
+  const { email, otp, password } = req.body;
+
+  if (!email || !otp || !password)
+    throw new ApiError("Email, code and new password are required", 400);
+
+  const result = await verifyOTP("reset:" + email, otp);
+  if (!result.valid) throw new ApiError(result.message, 400);
+
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError("Invalid or expired code", 400);
+
+  user.password = password;
+  user.isVerified = true;
+  await user.save();
+
+  res.json({
+    success: true,
+    message: "Password reset successfully. You can now sign in.",
+  });
 };
 
 // GET /api/auth/me

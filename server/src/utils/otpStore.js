@@ -1,71 +1,74 @@
-// Simple in-memory OTP store
-// In production you would use Redis for this
-const otpStore = new Map();
+import crypto from "crypto";
+import OtpCode from "../models/OtpCode.js";
 
-const OTP_EXPIRY = 10 * 60 * 1000; // 10 minutes
-const MAX_ATTEMPTS = 5; // max wrong attempts before lockout
+const OTP_EXPIRY = 10 * 60 * 1000;
+const MAX_ATTEMPTS = 5;
 
-export const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+const hashCode = (otp) =>
+  crypto.createHash("sha256").update(String(otp)).digest("hex");
+
+// Cryptographically secure 6-digit code
+export const generateOTP = () => crypto.randomInt(100000, 1000000).toString();
+
+export const storeOTP = async (key, otp) => {
+  await OtpCode.findOneAndUpdate(
+    { key },
+    {
+      key,
+      codeHash: hashCode(otp),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + OTP_EXPIRY),
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
 };
 
-export const storeOTP = (email, otp) => {
-  otpStore.set(email, {
-    otp,
-    expiresAt: Date.now() + OTP_EXPIRY,
-    attempts: 0,
-  });
-};
-
-export const verifyOTP = (email, inputOtp) => {
-  const record = otpStore.get(email);
+export const verifyOTP = async (key, inputOtp) => {
+  const record = await OtpCode.findOne({ key });
 
   if (!record) {
     return {
       valid: false,
-      message: "OTP not found. Please request a new one.",
+      message: "Code not found. Please request a new one.",
     };
   }
 
-  if (Date.now() > record.expiresAt) {
-    otpStore.delete(email);
+  if (record.expiresAt.getTime() < Date.now()) {
+    await OtpCode.deleteOne({ _id: record._id });
     return {
       valid: false,
-      message: "OTP has expired. Please request a new one.",
+      message: "Code has expired. Please request a new one.",
     };
   }
 
   if (record.attempts >= MAX_ATTEMPTS) {
-    otpStore.delete(email);
+    await OtpCode.deleteOne({ _id: record._id });
     return {
       valid: false,
-      message: "Too many attempts. Please request a new OTP.",
+      message: "Too many attempts. Please request a new code.",
     };
   }
 
-  if (record.otp !== inputOtp) {
-    record.attempts += 1;
+  const expected = Buffer.from(record.codeHash);
+  const received = Buffer.from(hashCode(inputOtp));
+  const matches =
+    expected.length === received.length &&
+    crypto.timingSafeEqual(expected, received);
+
+  if (!matches) {
+    await OtpCode.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
+    const remaining = MAX_ATTEMPTS - (record.attempts + 1);
     return {
       valid: false,
-      message: `Invalid code. ${MAX_ATTEMPTS - record.attempts} attempts remaining.`,
+      message:
+        "Invalid code. " + Math.max(remaining, 0) + " attempts remaining.",
     };
   }
 
-  otpStore.delete(email);
+  await OtpCode.deleteOne({ _id: record._id });
   return { valid: true };
 };
 
-export const clearOTP = (email) => {
-  otpStore.delete(email);
+export const clearOTP = async (key) => {
+  await OtpCode.deleteOne({ key });
 };
-
-// Clean up expired OTPs every 15 minutes
-setInterval(
-  () => {
-    const now = Date.now();
-    for (const [email, record] of otpStore.entries()) {
-      if (now > record.expiresAt) otpStore.delete(email);
-    }
-  },
-  15 * 60 * 1000,
-);

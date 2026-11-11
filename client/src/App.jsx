@@ -1,10 +1,11 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { lazy, Suspense } from "react";
 
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import ProtectedRoute from "./components/common/ProtectedRoute";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 import ChatBot from "./components/ai/ChatBot";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
@@ -12,6 +13,7 @@ const ListingsPage = lazy(() => import("./pages/ListingsPage"));
 const PropertyDetailPage = lazy(() => import("./pages/PropertyDetailPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const VerifyOTPPage = lazy(() => import("./pages/VerifyOTPPage"));
 const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
@@ -36,57 +38,68 @@ function PageLoader() {
   );
 }
 
+// Keyed by pathname so the boundary resets every time the user navigates
+function AppRoutes() {
+  const location = useLocation();
+
+  return (
+    <ErrorBoundary key={location.pathname} variant="page">
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/listings" element={<ListingsPage />} />
+          <Route path="/listings/:id" element={<PropertyDetailPage />} />
+          <Route path="/agents" element={<AgentsPage />} />
+          <Route path="/agents/:id" element={<AgentProfilePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-otp" element={<VerifyOTPPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route
+            path="/mortgage-calculator"
+            element={<MortgageCalculatorPage />}
+          />
+
+          {/* Protected: any logged in user */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/saved" element={<ProfilePage />} />
+          </Route>
+
+          {/* Protected: agents and admins only */}
+          <Route element={<ProtectedRoute requireAgent={true} />}>
+            <Route path="/listings/create" element={<CreateListingPage />} />
+            <Route path="/premium" element={<PremiumPage />} />
+          </Route>
+
+          {/* Protected: admin only */}
+          <Route element={<ProtectedRoute requireAdmin={true} />}>
+            <Route path="/admin" element={<AdminPage />} />
+          </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-1">
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<HomePage />} />
-              <Route path="/listings" element={<ListingsPage />} />
-              <Route path="/listings/:id" element={<PropertyDetailPage />} />
-              <Route path="/agents" element={<AgentsPage />} />
-              <Route path="/agents/:id" element={<AgentProfilePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/verify-otp" element={<VerifyOTPPage />} />
-              <Route path="/verify-email" element={<VerifyEmailPage />} />
-              <Route
-                path="/mortgage-calculator"
-                element={<MortgageCalculatorPage />}
-              />
-
-              {/* Protected — any logged in user */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/saved" element={<ProfilePage />} />
-              </Route>
-
-              {/* Protected — agents and admins only */}
-              <Route element={<ProtectedRoute requireAgent={true} />}>
-                <Route
-                  path="/listings/create"
-                  element={<CreateListingPage />}
-                />
-                <Route path="/premium" element={<PremiumPage />} />
-              </Route>
-
-              {/* Protected — admin only */}
-              <Route element={<ProtectedRoute requireAdmin={true} />}>
-                <Route path="/admin" element={<AdminPage />} />
-              </Route>
-
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </Suspense>
+          <AppRoutes />
         </main>
         <Footer />
       </div>
 
-      <ChatBot />
+      <ErrorBoundary variant="silent">
+        <ChatBot />
+      </ErrorBoundary>
 
       <Toaster
         position="top-right"

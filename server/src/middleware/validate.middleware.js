@@ -1,7 +1,6 @@
 import { body, validationResult } from "express-validator";
 import ApiError from "../utils/ApiError.js";
 
-// Run validation and return errors
 export const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -14,7 +13,18 @@ export const validate = (req, res, next) => {
   next();
 };
 
-// ── Auth validators ───────────────────────────────────────
+// Shared password rule: 8+ characters, uppercase, lowercase, number
+export const passwordRules = (field = "password") =>
+  body(field)
+    .notEmpty()
+    .withMessage("Password is required")
+    .isLength({ min: 8, max: 100 })
+    .withMessage("Password must be at least 8 characters")
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage(
+      "Password must contain an uppercase letter, a lowercase letter and a number",
+    );
+
 export const validateRegister = [
   body("name")
     .trim()
@@ -22,8 +32,10 @@ export const validateRegister = [
     .withMessage("Name is required")
     .isLength({ min: 2, max: 50 })
     .withMessage("Name must be 2-50 characters")
-    .matches(/^[a-zA-Z\s]+$/)
-    .withMessage("Name can only contain letters and spaces"),
+    .matches(/^[a-zA-Z\s'.-]+$/)
+    .withMessage(
+      "Name can only contain letters, spaces, apostrophes, dots and hyphens",
+    ),
 
   body("email")
     .trim()
@@ -33,13 +45,7 @@ export const validateRegister = [
     .withMessage("Please provide a valid email")
     .normalizeEmail(),
 
-  body("password")
-    .notEmpty()
-    .withMessage("Password is required")
-    .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage("Password must contain uppercase, lowercase and a number"),
+  passwordRules("password"),
 
   body("role").optional().isIn(["user", "agent"]).withMessage("Invalid role"),
 
@@ -60,7 +66,6 @@ export const validateLogin = [
   validate,
 ];
 
-// ── Listing validators ────────────────────────────────────
 export const validateListing = [
   body("title")
     .trim()
@@ -103,7 +108,6 @@ export const validateListing = [
   validate,
 ];
 
-// ── Inquiry validator ─────────────────────────────────────
 export const validateInquiry = [
   body("name")
     .trim()

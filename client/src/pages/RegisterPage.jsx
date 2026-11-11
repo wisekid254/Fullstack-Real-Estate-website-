@@ -1,12 +1,118 @@
-import zxcvbn from "zxcvbn";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { registerUser } from "../store/authSlice";
 import useAuth from "../hooks/useAuth";
-import { useSelector } from "react-redux";
+
+const getRules = (password) => [
+  {
+    label: "At least 8 characters",
+    pass: password.length >= 8,
+    required: true,
+  },
+  {
+    label: "An uppercase letter",
+    pass: /[A-Z]/.test(password),
+    required: true,
+  },
+  { label: "A lowercase letter", pass: /[a-z]/.test(password), required: true },
+  { label: "A number", pass: /\d/.test(password), required: true },
+  {
+    label: "A special character",
+    pass: /[^A-Za-z0-9]/.test(password),
+    required: false,
+  },
+];
+
+function PasswordChecklist({ password }) {
+  if (!password) return null;
+
+  const rules = getRules(password);
+  const requiredMet = rules.filter((r) => r.required && r.pass).length;
+  const bonusMet =
+    rules.filter((r) => !r.required && r.pass).length +
+    (password.length >= 12 ? 1 : 0);
+  const score = requiredMet + bonusMet;
+
+  let label = "Weak";
+  let color = "bg-red-500";
+  let width = "w-1/4";
+  if (requiredMet === 4 && score === 4) {
+    label = "Good";
+    color = "bg-yellow-500";
+    width = "w-2/4";
+  }
+  if (requiredMet === 4 && score === 5) {
+    label = "Strong";
+    color = "bg-green-500";
+    width = "w-3/4";
+  }
+  if (requiredMet === 4 && score >= 6) {
+    label = "Very strong";
+    color = "bg-green-600";
+    width = "w-full";
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-surface-500">Password strength</span>
+        <span className="text-xs font-medium text-surface-700">{label}</span>
+      </div>
+      <div className="h-1.5 bg-surface-100 rounded-full overflow-hidden">
+        <div
+          className={
+            "h-full rounded-full transition-all duration-300 " +
+            color +
+            " " +
+            width
+          }
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 pt-1">
+        {rules.map((rule) => (
+          <div key={rule.label} className="flex items-center gap-1.5">
+            <div
+              className={
+                "w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 " +
+                (rule.pass ? "bg-green-100" : "bg-surface-100")
+              }
+            >
+              {rule.pass ? (
+                <svg
+                  className="w-2.5 h-2.5 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              ) : (
+                <div className="w-1 h-1 rounded-full bg-surface-300" />
+              )}
+            </div>
+            <span
+              className={
+                "text-xs " +
+                (rule.pass ? "text-surface-600" : "text-surface-400")
+              }
+            >
+              {rule.label}
+              {!rule.required ? " (optional)" : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function RegisterPage() {
   const dispatch = useDispatch();
@@ -15,6 +121,7 @@ export default function RegisterPage() {
   const { isAuthenticated, loading, error, clearError } = useAuth();
   const requiresVerification = useSelector((s) => s.auth.requiresVerification);
 
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -28,25 +135,35 @@ export default function RegisterPage() {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
+    if (requiresVerification) navigate("/verify-email");
+  }, [requiresVerification, navigate]);
+
+  useEffect(() => {
     if (error) {
       toast.error(error);
       clearError();
     }
   }, [error]);
 
-  useEffect(() => {
-    if (requiresVerification) navigate("/verify-email");
-  }, [requiresVerification, navigate]);
-
   const handleChange = (e) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
+  const rules = getRules(form.password);
+  const requiredMet = rules.filter((r) => r.required).every((r) => r.pass);
+  const matches = form.password === form.confirm;
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (form.password !== form.confirm) {
+
+    if (!requiredMet) {
+      toast.error("Your password does not meet all the requirements");
+      return;
+    }
+    if (!matches) {
       toast.error("Passwords do not match");
       return;
     }
+
     dispatch(
       registerUser({
         name: form.name,
@@ -79,27 +196,28 @@ export default function RegisterPage() {
         </div>
 
         <div className="card p-8">
-          {/* Role selector */}
           <div className="flex gap-2 mb-6">
             <button
               type="button"
               onClick={() => setForm((p) => ({ ...p, role: "user" }))}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                form.role === "user"
+              className={
+                "flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors " +
+                (form.role === "user"
                   ? "bg-brand-500 text-white border-brand-500"
-                  : "border-surface-200 text-surface-600 hover:border-brand-300"
-              }`}
+                  : "border-surface-200 text-surface-600 hover:border-brand-300")
+              }
             >
               I am a buyer / renter
             </button>
             <button
               type="button"
               onClick={() => setForm((p) => ({ ...p, role: "agent" }))}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                form.role === "agent"
+              className={
+                "flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors " +
+                (form.role === "agent"
                   ? "bg-brand-500 text-white border-brand-500"
-                  : "border-surface-200 text-surface-600 hover:border-brand-300"
-              }`}
+                  : "border-surface-200 text-surface-600 hover:border-brand-300")
+              }
             >
               I am an agent
             </button>
@@ -140,16 +258,25 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-surface-700 mb-1.5">
                 Password
               </label>
-              <input
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="At least 6 characters"
-                required
-                minLength={6}
-                className="input"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="Choose a strong password"
+                  required
+                  className="input pr-16"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-surface-500 hover:text-surface-700"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+              <PasswordChecklist password={form.password} />
             </div>
 
             <div>
@@ -157,14 +284,19 @@ export default function RegisterPage() {
                 Confirm password
               </label>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 name="confirm"
                 value={form.confirm}
                 onChange={handleChange}
-                placeholder="••••••••"
+                placeholder="Repeat your password"
                 required
                 className="input"
               />
+              {form.confirm.length > 0 && !matches && (
+                <p className="text-xs text-red-500 mt-1">
+                  Passwords do not match
+                </p>
+              )}
             </div>
 
             {isAgent && (
@@ -176,11 +308,11 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="btn-primary w-full"
+              disabled={loading || !requiredMet || !matches}
+              className="btn-primary w-full disabled:opacity-50"
             >
               {loading
-                ? "Creating account…"
+                ? "Creating account..."
                 : isAgent
                   ? "Join as agent"
                   : "Create account"}
@@ -198,87 +330,6 @@ export default function RegisterPage() {
           </p>
         </div>
       </motion.div>
-    </div>
-  );
-}
-function PasswordStrength({ password }) {
-  if (!password) return null;
-  const result = zxcvbn(password);
-  const score = result.score; // 0-4
-
-  const levels = [
-    { label: "Very weak", color: "bg-red-500", width: "w-1/4" },
-    { label: "Weak", color: "bg-orange-500", width: "w-2/4" },
-    { label: "Fair", color: "bg-yellow-500", width: "w-3/4" },
-    { label: "Strong", color: "bg-green-500", width: "w-full" },
-    { label: "Very strong", color: "bg-green-600", width: "w-full" },
-  ];
-
-  const current = levels[score];
-
-  const checks = [
-    { label: "At least 6 characters", pass: password.length >= 6 },
-    { label: "Uppercase letter", pass: /[A-Z]/.test(password) },
-    { label: "Lowercase letter", pass: /[a-z]/.test(password) },
-    { label: "Number", pass: /\d/.test(password) },
-    { label: "Special character", pass: /[^A-Za-z0-9]/.test(password) },
-  ];
-
-  return (
-    <div className="mt-2 space-y-2">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-surface-500">Password strength</span>
-        <span
-          className={`text-xs font-medium ${
-            score < 2
-              ? "text-red-500"
-              : score < 3
-                ? "text-yellow-600"
-                : "text-green-600"
-          }`}
-        >
-          {current.label}
-        </span>
-      </div>
-      <div className="h-1.5 bg-surface-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${current.color} ${current.width}`}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-1 mt-2">
-        {checks.map((c) => (
-          <div key={c.label} className="flex items-center gap-1.5">
-            <div
-              className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                c.pass ? "bg-green-100" : "bg-surface-100"
-              }`}
-            >
-              {c.pass ? (
-                <svg
-                  className="w-2.5 h-2.5 text-green-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={3}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              ) : (
-                <div className="w-1 h-1 rounded-full bg-surface-300" />
-              )}
-            </div>
-            <span
-              className={`text-xs ${c.pass ? "text-surface-600" : "text-surface-400"}`}
-            >
-              {c.label}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
