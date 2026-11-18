@@ -15,6 +15,7 @@ import notificationRoutes from "./routes/notification.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import errorHandler from "./middleware/errorHandler.js";
+
 import {
   apiLimiter,
   authLimiter,
@@ -26,9 +27,43 @@ import {
 
 const app = express();
 
+// 1. CORS CONFIGURATION
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "https://fullstack-real-estate-website.vercel.app",
+  "https://fullstack-real-estate-website-lijcdhcii-wisekid254s-projects.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:4173",
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn("Blocked CORS origin:", origin);
+    return callback(null, false);
+  },
+
+  credentials: true,
+
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// CORS must run before other middleware and API routes.
+app.use(cors(corsOptions));
+
+// 2. SECURITY HEADERS
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginResourcePolicy: {
+      policy: "cross-origin",
+    },
+
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -43,39 +78,35 @@ app.use(
   }),
 );
 
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:4173",
-].filter(Boolean);
+// 3. LOGGING
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-      else callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
-
-if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
-
+// 4. BODY PARSING
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+// 5. DATA SECURITY
 app.use(sanitizeMongo);
 app.use(sanitizeXss);
 app.use(preventHpp);
-app.use("/api", apiLimiter);
+
+// 6. PROXY CONFIGURATION
 app.set("trust proxy", 1);
 
-app.get("/api/health", (req, res) =>
-  res.json({ status: "ok", env: process.env.NODE_ENV }),
-);
+// 7. API RATE LIMITING
+app.use("/api", apiLimiter);
 
+// 8. HEALTH CHECK
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    env: process.env.NODE_ENV,
+  });
+});
+
+// 9. API ROUTES
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/listings", listingRoutes);
 app.use("/api/users", userRoutes);
@@ -87,9 +118,15 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
 
-app.use((req, res) =>
-  res.status(404).json({ success: false, message: "Route not found" }),
-);
+// 10. 404 HANDLER
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
+});
+
+// 11. GLOBAL ERROR HANDLER
 app.use(errorHandler);
 
 export default app;
