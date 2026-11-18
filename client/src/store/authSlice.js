@@ -36,6 +36,19 @@ export const loginUser = createAsyncThunk(
   },
 );
 
+export const googleLoginThunk = createAsyncThunk(
+  "auth/google",
+  async (data, { rejectWithValue }) => {
+    try {
+      return await authService.googleLogin(data);
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Google sign-in failed",
+      );
+    }
+  },
+);
+
 export const verifyOtpThunk = createAsyncThunk(
   "auth/verifyOtp",
   async (data, { rejectWithValue }) => {
@@ -113,7 +126,6 @@ const authSlice = createSlice({
     };
 
     builder
-      // Register — sends signup OTP, no token yet
       .addCase(registerUser.pending, pending)
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
@@ -125,7 +137,6 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Login — step 1
       .addCase(loginUser.pending, pending)
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
@@ -143,7 +154,13 @@ const authSlice = createSlice({
         }
       })
 
-      // Login OTP verify — step 2
+      .addCase(googleLoginThunk.pending, pending)
+      .addCase(googleLoginThunk.fulfilled, fulfilled)
+      .addCase(googleLoginThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
       .addCase(verifyOtpThunk.pending, pending)
       .addCase(verifyOtpThunk.fulfilled, fulfilled)
       .addCase(verifyOtpThunk.rejected, (state, action) => {
@@ -151,7 +168,6 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Signup OTP verify — activates account + logs in
       .addCase(verifySignupOtpThunk.pending, pending)
       .addCase(verifySignupOtpThunk.fulfilled, fulfilled)
       .addCase(verifySignupOtpThunk.rejected, (state, action) => {

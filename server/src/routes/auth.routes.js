@@ -4,6 +4,7 @@ import {
   login,
   verifyOtp,
   verifySignupOtp,
+  googleAuth,
   resendOtp,
   forgotPassword,
   resetPassword,
@@ -46,6 +47,15 @@ const resetLimiter = rateLimit({
   },
 });
 
+const googleLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: {
+    success: false,
+    message: "Too many Google sign-in attempts. Try again in 15 minutes.",
+  },
+});
+
 const validateOtp = [
   body("email").isEmail().withMessage("Valid email required").normalizeEmail(),
   body("otp")
@@ -76,10 +86,21 @@ const validateReset = [
   validate,
 ];
 
+const validateGoogle = [
+  body("credential")
+    .isString()
+    .withMessage("Google credential is required")
+    .isLength({ min: 20, max: 4096 })
+    .withMessage("Invalid Google credential"),
+  body("role").optional().isIn(["user", "agent"]).withMessage("Invalid role"),
+  validate,
+];
+
 const router = Router();
 
 router.post("/register", validateRegister, register);
 router.post("/login", validateLogin, login);
+router.post("/google", googleLimiter, validateGoogle, googleAuth);
 router.post("/verify-signup-otp", otpLimiter, validateOtp, verifySignupOtp);
 router.post("/verify-otp", otpLimiter, validateOtp, verifyOtp);
 router.post("/resend-otp", otpLimiter, validateEmailOnly, resendOtp);

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { registerUser } from "../store/authSlice";
 import useAuth from "../hooks/useAuth";
+import GoogleButton from "../components/auth/GoogleButton";
 
 const getRules = (password) => [
   {
@@ -118,8 +119,8 @@ export default function RegisterPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, loading, error, clearError } = useAuth();
-  const requiresVerification = useSelector((s) => s.auth.requiresVerification);
+  const { isAuthenticated, loading, error, clearError, requiresVerification } =
+    useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
@@ -222,6 +223,18 @@ export default function RegisterPage() {
               I am an agent
             </button>
           </div>
+
+          <GoogleButton role={form.role} text="signup_with" />
+
+          {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-surface-200" />
+              <span className="text-xs text-surface-400">
+                or sign up with email
+              </span>
+              <div className="flex-1 h-px bg-surface-200" />
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

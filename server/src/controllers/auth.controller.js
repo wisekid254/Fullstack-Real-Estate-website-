@@ -1,3 +1,5 @@
+import { OAuth2Client } from "google-auth-library";
+import validator from "validator";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 import ApiError from "../utils/ApiError.js";
@@ -8,6 +10,8 @@ import {
   sendWelcomeEmail,
 } from "../utils/emailService.js";
 import { generateOTP, storeOTP, verifyOTP } from "../utils/otpStore.js";
+
+const googleClient = new OAuth2Client();
 
 const publicUser = (user) => ({
   _id: user._id,
@@ -92,7 +96,17 @@ export const login = async (req, res) => {
     throw new ApiError("Please provide email and password", 400);
 
   const user = await User.findOne({ email }).select("+password");
-  if (!user || !(await user.matchPassword(password)))
+  if (!user) throw new ApiError("Invalid email or password", 401);
+
+  // Accounts created through Google have no password
+  if (!user.password) {
+    throw new ApiError(
+      'This account uses Google sign-in. Click "Continue with Google", or use "Forgot password" to set a password.',
+      400,
+    );
+  }
+
+  if (!(await user.matchPassword(password)))
     throw new ApiError("Invalid email or password", 401);
 
   if (!user.isVerified) {
@@ -150,8 +164,90 @@ export const verifyOtp = async (req, res) => {
   });
 };
 
+// POST /api/auth/google
+export const googleAuth = async (req, res) => {
+  const { credential, role } = req.body;
+
+  if (!credential) throw new ApiError("Google credential is required", 400);
+
+  if (!process.env.GOOGLE_CLIENT_ID)
+    throw new ApiError("Google sign-in is not configured on the server", 500);
+
+  // Google verifies the signature, expiry and that the token was issued for OUR client ID
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (err) {
+    console.error("Google token verification failed:", err.message);
+    throw new ApiError("Google sign-in failed. Please try again.", 401);
+  }
+
+  if (!payload || !payload.email || !payload.email_verified)
+    throw new ApiError("Your Google email address is not verified", 400);
+
+  const googleId = payload.sub;
+  const email =
+    validator.normalizeEmail(payload.email) || payload.email.toLowerCase();
+  const name = payload.name || email.split("@")[0];
+  const picture = payload.picture || "";
+
+  let user = await User.findOne({ googleId });
+  let isNewUser = false;
+
+  if (!user) {
+    user = await User.findOne({ email });
+
+    if (user) {
+      // An account with this email already exists: link it to Google
+      if (user.googleId && user.googleId !== googleId)
+        throw new ApiError(
+          "This email is linked to a different Google account",
+          400,
+        );
+
+      user.googleId = googleId;
+
+      // If the email was never verified, whoever set the password never proved they own
+      // the address. Remove that password so it cannot be used to take over the account.
+      if (!user.isVerified) {
+        user.password = undefined;
+        user.isVerified = true;
+      }
+
+      if (!user.avatar && picture) user.avatar = picture;
+      await user.save();
+    } else {
+      const allowedRoles = ["user", "agent"];
+
+      user = await User.create({
+        name,
+        email,
+        googleId,
+        avatar: picture,
+        role: allowedRoles.includes(role) ? role : "user",
+        isVerified: true,
+      });
+      isNewUser = true;
+
+      sendWelcomeEmail({ to: email, name }).catch((err) => {
+        console.error("Welcome email error:", err.message);
+      });
+    }
+  }
+
+  res.json({
+    success: true,
+    token: generateToken(user._id),
+    user: publicUser(user),
+    isNewUser,
+  });
+};
+
 // POST /api/auth/resend-otp
-// Responds the same whether or not the account exists
 export const resendOtp = async (req, res) => {
   const { email, purpose = "login" } = req.body;
 
